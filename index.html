@@ -1,0 +1,1060 @@
+<title>揃える本</title>
+<style>
+  :root {
+    --bg: #eee9de;
+    --bg-soft: #e6e0d2;
+    --card: #fbf8f2;
+    --card-border: #ddd4c0;
+    --ink: #2b2620;
+    --ink-soft: #6b6255;
+    --accent: #2b5f5a;
+    --accent-ink: #f4f1e8;
+    --accent-2: #b5652b;
+    --missing: #c24632;
+    --missing-bg: #f6e2dc;
+    --owned: #3e7d5a;
+    --owned-bg: #e2ecdf;
+    --focus: #2b5f5a;
+    --overlay: rgba(30, 26, 20, 0.42);
+    --shadow: 0 1px 2px rgba(43,38,32,0.06), 0 4px 14px rgba(43,38,32,0.06);
+    --shadow-lg: 0 8px 30px rgba(43,38,32,0.22);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1815;
+      --bg-soft: #221e19;
+      --card: #26221d;
+      --card-border: #3a342c;
+      --ink: #ede6d8;
+      --ink-soft: #a89d89;
+      --accent: #7fcabd;
+      --accent-ink: #16211e;
+      --accent-2: #e0a567;
+      --missing: #e88569;
+      --missing-bg: #3a2620;
+      --owned: #86cba0;
+      --owned-bg: #1f3226;
+      --focus: #7fcabd;
+      --overlay: rgba(0, 0, 0, 0.55);
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.35);
+      --shadow-lg: 0 10px 34px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1815; --bg-soft: #221e19; --card: #26221d; --card-border: #3a342c;
+    --ink: #ede6d8; --ink-soft: #a89d89; --accent: #7fcabd; --accent-ink: #16211e;
+    --accent-2: #e0a567; --missing: #e88569; --missing-bg: #3a2620;
+    --owned: #86cba0; --owned-bg: #1f3226; --focus: #7fcabd;
+    --overlay: rgba(0, 0, 0, 0.55);
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.35);
+    --shadow-lg: 0 10px 34px rgba(0,0,0,0.5);
+  }
+  :root[data-theme="light"] {
+    --bg: #eee9de; --bg-soft: #e6e0d2; --card: #fbf8f2; --card-border: #ddd4c0;
+    --ink: #2b2620; --ink-soft: #6b6255; --accent: #2b5f5a; --accent-ink: #f4f1e8;
+    --accent-2: #b5652b; --missing: #c24632; --missing-bg: #f6e2dc;
+    --owned: #3e7d5a; --owned-bg: #e2ecdf; --focus: #2b5f5a;
+    --overlay: rgba(30, 26, 20, 0.42);
+    --shadow: 0 1px 2px rgba(43,38,32,0.06), 0 4px 14px rgba(43,38,32,0.06);
+    --shadow-lg: 0 8px 30px rgba(43,38,32,0.22);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  body {
+    font-family: "Hiragino Kaku Gothic ProN", "BIZ UDGothic", "Yu Gothic", "Noto Sans JP", sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    padding-bottom: 90px;
+  }
+  h1, h2, h3, .display {
+    font-family: "Hiragino Maru Gothic ProN", "M PLUS Rounded 1c", "BIZ UDGothic", "Yu Gothic", sans-serif;
+    font-weight: 700;
+    text-wrap: balance;
+    margin: 0;
+  }
+  .nums { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+  a { color: var(--accent); }
+  button { font-family: inherit; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+
+  header.top {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--bg);
+    padding-top: 18px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--card-border);
+  }
+  header.top .titlebar { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  header.top .titlebar h1 { font-size: 20px; letter-spacing: 0.01em; }
+  header.top .titlebar .sub { font-size: 12px; color: var(--ink-soft); }
+  .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-tile { background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; padding: 10px 14px; box-shadow: var(--shadow); }
+  .stat-tile .label { font-size: 11px; color: var(--ink-soft); letter-spacing: 0.04em; }
+  .stat-tile .value { font-size: 22px; font-weight: 700; margin-top: 2px; }
+  .stat-tile.warn .value { color: var(--missing); }
+  .stat-tile.money .value { color: var(--accent-2); }
+
+  .filters { display: flex; gap: 6px; overflow-x: auto; padding: 12px 0 2px; scrollbar-width: none; }
+  .filters::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto; border: 1px solid var(--card-border); background: var(--card);
+    color: var(--ink-soft); border-radius: 999px; padding: 6px 13px; font-size: 13px;
+    cursor: pointer; white-space: nowrap;
+  }
+  .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+
+  main { padding-top: 16px; }
+
+  .titles { display: flex; flex-direction: column; gap: 12px; }
+  .title-card { background: var(--card); border: 1px solid var(--card-border); border-radius: 16px; padding: 14px; box-shadow: var(--shadow); }
+  .title-card .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; cursor: pointer; }
+  .title-card .head .name-block { min-width: 0; }
+  .title-card .head h3 { font-size: 16px; overflow-wrap: anywhere; }
+  .title-card .head h3 .complete-badge {
+    display: inline-block; font-size: 11px; font-weight: 700; color: var(--owned);
+    background: var(--owned-bg); border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: middle;
+  }
+  .flag-row { display: flex; gap: 6px; margin-top: 6px; }
+  .flag-btn {
+    width: 30px; height: 30px; border-radius: 9px; border: 1px solid var(--card-border);
+    background: var(--card); color: var(--ink-soft); font-size: 15px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+  }
+  .flag-btn[aria-pressed="true"].star { background: var(--accent-2); border-color: transparent; }
+  .flag-btn[aria-pressed="true"].warn { background: var(--missing); border-color: transparent; }
+  .flag-btn[aria-pressed="true"].timer { background: var(--accent); border-color: transparent; }
+  .flag-filters { display: flex; gap: 6px; padding: 12px 0 0; }
+  .flag-filters .flag-btn { width: 36px; height: 36px; font-size: 17px; }
+
+  .meta-line { font-size: 12px; color: var(--ink-soft); margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .meta-line .genre-tag { background: var(--bg-soft); border-radius: 6px; padding: 1px 6px; }
+  .meta-line .deadline.due-soon { color: var(--missing); font-weight: 700; }
+
+  .progress-mini { font-size: 13px; font-weight: 700; flex: 0 0 auto; text-align: right; }
+  .progress-mini .frac-owned { color: var(--owned); }
+  .progress-mini .frac-total { color: var(--ink-soft); }
+
+  .set-block { margin-top: 12px; }
+  .set-block-label {
+    font-size: 11px; font-weight: 700; color: var(--ink-soft);
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+  }
+  .set-block-label .set-progress { font-variant-numeric: tabular-nums; }
+  .set-block-label .set-progress .owned-num { color: var(--owned); }
+
+  .vol-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .vol-chip {
+    min-width: 34px; height: 34px; padding: 0 6px; border-radius: 9px; border: 1px solid var(--card-border);
+    background: var(--missing-bg); color: var(--missing); font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; font-variant-numeric: tabular-nums;
+  }
+  .vol-chip.owned { background: var(--owned-bg); color: var(--owned); border-color: transparent; }
+  .vol-chip:active { transform: scale(0.94); }
+
+  .add-set-btn {
+    margin-top: 10px; width: 100%; border: 1px dashed var(--card-border); background: transparent;
+    color: var(--ink-soft); border-radius: 10px; padding: 8px; font-size: 12px; cursor: pointer;
+  }
+  .add-set-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .detail { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--card-border); display: none; }
+  .detail.open { display: block; }
+  .field-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .field-row > * { flex: 1; min-width: 0; }
+  .field-row .narrow { flex: 0 0 100px; }
+  input[type="text"], input[type="number"], input[type="date"] {
+    width: 100%; background: var(--bg-soft); border: 1px solid var(--card-border);
+    border-radius: 10px; padding: 9px 10px; color: var(--ink); font-size: 14px; font-family: inherit;
+  }
+  label.field-label { display: block; font-size: 11px; color: var(--ink-soft); margin-bottom: 4px; }
+  .btn { border: none; border-radius: 10px; padding: 10px 16px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); width: 100%; }
+  .btn-ghost { background: transparent; border: 1px solid var(--card-border); color: var(--ink-soft); }
+  .btn-quiet { background: transparent; color: var(--ink-soft); border: none; padding: 4px 6px; font-size: 13px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+  .cost-quick { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+  .cost-quick button { border: 1px solid var(--card-border); background: var(--bg-soft); color: var(--ink); border-radius: 8px; padding: 5px 9px; font-size: 12px; cursor: pointer; }
+  .detail-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+
+  .empty-state { text-align: center; color: var(--ink-soft); padding: 40px 20px; font-size: 14px; }
+
+  footer.tools {
+    max-width: 640px; margin: 24px auto 0; padding: 14px 16px 0; border-top: 1px solid var(--card-border);
+    display: flex; gap: 10px; justify-content: center;
+  }
+  footer.tools .btn-ghost { flex: 1; max-width: 160px; }
+
+  /* FAB */
+  .fab {
+    position: fixed; right: 20px; bottom: 24px; z-index: 30;
+    width: 58px; height: 58px; border-radius: 50%;
+    background: var(--accent); color: var(--accent-ink);
+    border: none; font-size: 28px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow-lg); cursor: pointer;
+  }
+  .fab:active { transform: scale(0.96); }
+  .fab-secondary {
+    left: 20px; right: auto;
+    background: var(--card); color: var(--ink);
+    border: 1px solid var(--card-border);
+    font-size: 24px;
+  }
+
+  /* calculator */
+  .calc-sheet { max-width: 380px; }
+  .calc-display {
+    background: var(--bg-soft); border: 1px solid var(--card-border); border-radius: 14px;
+    padding: 18px 16px; text-align: right; font-size: 38px; font-weight: 700;
+    overflow-x: auto; white-space: nowrap; margin-bottom: 14px;
+  }
+  .calc-display.small { font-size: 24px; }
+  .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .calc-btn {
+    aspect-ratio: 1; border-radius: 14px; font-size: 19px; font-weight: 700;
+    border: none; cursor: pointer; font-family: inherit;
+  }
+  .calc-btn.digit { background: var(--card); color: var(--ink); border: 1px solid var(--card-border); }
+  .calc-btn.func { background: var(--bg-soft); color: var(--ink-soft); border: 1px solid var(--card-border); }
+  .calc-btn.op { background: var(--accent); color: var(--accent-ink); }
+  .calc-btn.equals { background: var(--accent-2); color: var(--accent-ink); }
+  .calc-btn.zero { grid-column: span 2; aspect-ratio: auto; }
+  .calc-btn:active { transform: scale(0.95); }
+
+  /* modal / sheet */
+  .modal-overlay {
+    position: fixed; inset: 0; background: var(--overlay); z-index: 40;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay[hidden] { display: none; }
+  .sheet {
+    width: 100%; max-width: 640px; max-height: 88vh; overflow-y: auto;
+    background: var(--bg); border-radius: 20px 20px 0 0; padding: 16px 16px 24px;
+    box-shadow: var(--shadow-lg);
+  }
+  .sheet-handle { width: 40px; height: 4px; border-radius: 3px; background: var(--card-border); margin: 0 auto 12px; }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .sheet-head h2 { font-size: 17px; }
+  .sheet-close { background: transparent; border: none; font-size: 22px; color: var(--ink-soft); cursor: pointer; padding: 4px 8px; }
+
+  .genre-picker { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .genre-picker .chip.add-genre { border-style: dashed; }
+  .new-genre-row { display: flex; gap: 6px; margin-top: 4px; }
+  .new-genre-row input { flex: 1; }
+  .new-genre-row button { flex: 0 0 auto; }
+
+  .stepper { display: flex; align-items: center; gap: 10px; }
+  .stepper button {
+    width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--card-border);
+    background: var(--card); color: var(--ink); font-size: 16px; font-weight: 700; cursor: pointer;
+  }
+  .stepper .step-value { font-size: 16px; font-weight: 700; min-width: 28px; text-align: center; }
+  .set-preview { font-size: 12px; color: var(--ink-soft); margin-top: 6px; }
+
+  .hint { font-size: 11px; color: var(--ink-soft); margin-top: 3px; }
+
+  .backup-textarea {
+    width: 100%; height: 38vh; padding: 10px; border-radius: 12px;
+    border: 1px solid var(--card-border); background: var(--bg-soft); color: var(--ink);
+    font-size: 11px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    resize: vertical;
+  }
+  .backup-state { font-size: 12px; color: var(--accent); min-height: 16px; margin-top: 8px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .vol-chip, .btn, .chip, .fab { transition: transform 0.1s ease, background-color 0.15s ease; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="titlebar">
+      <h1>📚 揃える本</h1>
+      <span class="sub">端末内保存・自分専用</span>
+    </div>
+    <div class="stat-row">
+      <div class="stat-tile warn">
+        <div class="label">要対応（不足あり）</div>
+        <div class="value nums" id="statNeedAction">0作品</div>
+      </div>
+      <div class="stat-tile money">
+        <div class="label">累計仕入れ額</div>
+        <div class="value nums" id="statTotalCost">¥0</div>
+      </div>
+    </div>
+    <div class="flag-filters" id="flagFilters" role="tablist" aria-label="タグで絞り込み">
+      <button type="button" class="flag-btn star" id="filterStar" aria-pressed="false" aria-label="お気に入りで絞り込み">⭐</button>
+      <button type="button" class="flag-btn warn" id="filterWarn" aria-pressed="false" aria-label="注意で絞り込み">⚠️</button>
+      <button type="button" class="flag-btn timer" id="filterTimer" aria-pressed="false" aria-label="急ぎで絞り込み">⏱️</button>
+    </div>
+    <div class="filters" id="genreFilters" role="tablist" aria-label="ジャンルで絞り込み"></div>
+  </header>
+
+  <main>
+    <div class="titles" id="titleList"></div>
+    <div class="empty-state" id="emptyState" hidden>まだ何も登録されていません。<br>右下の＋ボタンから作品を追加してみてください。</div>
+  </main>
+
+  <footer class="tools">
+    <button class="btn btn-ghost" id="btnExport">バックアップ書き出し</button>
+    <button class="btn btn-ghost" id="btnImport">読み込み</button>
+    <input type="file" id="fileImport" accept="application/json" hidden />
+  </footer>
+</div>
+
+<button class="fab" id="fabAdd" aria-label="作品を追加" type="button">＋</button>
+<button class="fab fab-secondary" id="fabCalc" aria-label="電卓を開く" type="button">🧮</button>
+
+<div class="modal-overlay" id="backupModal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="backupModalTitle">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <h2 id="backupModalTitle">バックアップデータ</h2>
+      <button class="sheet-close" id="btnCloseBackup" aria-label="閉じる" type="button">×</button>
+    </div>
+    <div class="hint" style="margin-bottom:8px;">下のテキストを全部コピーして、メモアプリやLINEの「自分へのメッセージ」などに貼り付けて保存してください。</div>
+    <textarea class="backup-textarea" id="backupText" readonly></textarea>
+    <button class="btn btn-primary" id="btnCopyBackup" style="margin-top:10px;">コピーする</button>
+    <div class="backup-state" id="backupCopyState"></div>
+
+    <div style="margin-top:20px; padding-top:16px; border-top:1px dashed var(--card-border);">
+      <label class="field-label" for="restoreText">復元する場合はここに貼り付け</label>
+      <textarea class="backup-textarea" id="restoreText" style="height:16vh;" placeholder="保存しておいたバックアップのテキストをここに貼り付け"></textarea>
+      <button class="btn btn-ghost" id="btnRestoreText" style="margin-top:8px; width:100%;">この内容で復元する</button>
+      <div class="backup-state" id="restoreState"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="calcModal" hidden>
+  <div class="sheet calc-sheet" role="dialog" aria-modal="true" aria-labelledby="calcModalTitle">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <h2 id="calcModalTitle">電卓</h2>
+      <button class="sheet-close" id="btnCloseCalc" aria-label="閉じる" type="button">×</button>
+    </div>
+    <div class="calc-display nums" id="calcDisplay">0</div>
+    <div class="calc-grid">
+      <button type="button" class="calc-btn func" data-action="clear">C</button>
+      <button type="button" class="calc-btn func" data-action="sign">±</button>
+      <button type="button" class="calc-btn func" data-action="percent">%</button>
+      <button type="button" class="calc-btn op" data-op="÷">÷</button>
+
+      <button type="button" class="calc-btn digit" data-digit="7">7</button>
+      <button type="button" class="calc-btn digit" data-digit="8">8</button>
+      <button type="button" class="calc-btn digit" data-digit="9">9</button>
+      <button type="button" class="calc-btn op" data-op="×">×</button>
+
+      <button type="button" class="calc-btn digit" data-digit="4">4</button>
+      <button type="button" class="calc-btn digit" data-digit="5">5</button>
+      <button type="button" class="calc-btn digit" data-digit="6">6</button>
+      <button type="button" class="calc-btn op" data-op="-">－</button>
+
+      <button type="button" class="calc-btn digit" data-digit="1">1</button>
+      <button type="button" class="calc-btn digit" data-digit="2">2</button>
+      <button type="button" class="calc-btn digit" data-digit="3">3</button>
+      <button type="button" class="calc-btn op" data-op="+">＋</button>
+
+      <button type="button" class="calc-btn digit zero" data-digit="0">0</button>
+      <button type="button" class="calc-btn digit" data-digit=".">.</button>
+      <button type="button" class="calc-btn equals" data-action="equals">＝</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="addModal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="addModalTitle">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <h2 id="addModalTitle">作品を追加</h2>
+      <button class="sheet-close" id="btnCloseModal" aria-label="閉じる" type="button">×</button>
+    </div>
+
+    <label class="field-label" for="inName">作品名</label>
+    <input type="text" id="inName" placeholder="例：〇〇〇〇" style="margin-bottom:12px;" />
+
+    <label class="field-label">ジャンル（タップで選択）</label>
+    <div class="genre-picker" id="genrePicker"></div>
+    <div class="new-genre-row">
+      <input type="text" id="inNewGenre" placeholder="新しいジャンルを追加" />
+      <button type="button" class="btn btn-ghost" id="btnAddGenre">追加</button>
+    </div>
+
+    <div class="field-row" style="margin-top:14px;">
+      <div class="narrow">
+        <label class="field-label" for="inTotal">既刊数</label>
+        <input type="number" id="inTotal" min="1" max="200" placeholder="12" />
+      </div>
+    </div>
+
+    <label class="field-label" for="inLabels">巻の名前（数字じゃない時だけ）</label>
+    <input type="text" id="inLabels" placeholder="例：上,下　※カンマ区切り" />
+    <div class="hint">既刊数は必須。名前を入れた分だけ、先頭の巻から順に数字の代わりに使われます</div>
+
+    <label class="field-label" style="margin-top:14px;">作るセット数</label>
+    <div class="stepper">
+      <button type="button" id="btnSetMinus" aria-label="セット数を減らす">－</button>
+      <span class="step-value nums" id="setCountValue">1</span>
+      <button type="button" id="btnSetPlus" aria-label="セット数を増やす">＋</button>
+    </div>
+    <div class="set-preview nums" id="setPreview">1セット目 が作成されます</div>
+
+    <div class="field-row" style="margin-top:14px;">
+      <div>
+        <label class="field-label" for="inReason">締切の理由（メモ）</label>
+        <input type="text" id="inReason" placeholder="例：新刊発売にあわせて" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div>
+        <label class="field-label" for="inDeadline">締切日</label>
+        <input type="date" id="inDeadline" />
+      </div>
+    </div>
+
+    <label class="field-label" for="inCost">仕入れ値（累計・円）</label>
+    <input type="number" id="inCost" class="nums" min="0" placeholder="0" style="margin-bottom:8px;" />
+
+    <label class="field-label" for="inAddAmount">今回買った額</label>
+    <div class="field-row">
+      <input type="number" id="inAddAmount" class="nums" min="0" placeholder="円" />
+      <button type="button" class="btn btn-ghost" id="btnModalAddAmount" style="flex:0 0 52px;" aria-label="今回買った額を仕入れ値に加算">➕</button>
+    </div>
+
+    <button class="btn btn-primary" id="btnAdd" style="margin-top:14px;">この作品を追加する</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORE_KEY = "nukemaki-tracker-v2";
+  var LEGACY_KEY = "nukemaki-tracker-v1";
+  var PRESET_GENRES = ["少女", "少年", "青年", "TL", "BL", "ラノベ", "文庫", "大判", "小説", "絵本", "児童書"];
+  var state = load();
+  var modalSelectedGenre = "";
+  var modalSetCount = 1;
+  var openDetailId = null;
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  function migrateTitle(t) {
+    if (!t.sets) {
+      t.sets = [{ id: uid(), label: "1セット目", owned: t.owned || new Array(t.total || 0).fill(false) }];
+      delete t.owned;
+    }
+    if (t.volumeLabels === undefined) t.volumeLabels = null;
+    if (t.cost === undefined) t.cost = 0;
+    if (t.deadline === undefined) t.deadline = "";
+    if (t.reason === undefined) t.reason = "";
+    if (!t.flags) t.flags = { star: false, warn: false, timer: false };
+    return t;
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (raw) {
+        var data = JSON.parse(raw);
+        data.titles = (data.titles || []).map(migrateTitle);
+        if (!data.activeGenre) data.activeGenre = "all";
+        if (data.activeFlag === undefined) data.activeFlag = null;
+        return data;
+      }
+      var legacyRaw = localStorage.getItem(LEGACY_KEY);
+      if (legacyRaw) {
+        var legacy = JSON.parse(legacyRaw);
+        legacy.titles = (legacy.titles || []).map(migrateTitle);
+        if (!legacy.activeGenre) legacy.activeGenre = "all";
+        if (legacy.activeFlag === undefined) legacy.activeFlag = null;
+        return legacy;
+      }
+    } catch (e) {}
+    return { titles: [], activeGenre: "all", activeFlag: null };
+  }
+
+  function save() {
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  }
+
+  function yen(n) {
+    return "¥" + Math.round(n || 0).toLocaleString("ja-JP");
+  }
+
+  function allGenres() {
+    var set = {};
+    state.titles.forEach(function (t) { if (t.genre) set[t.genre] = true; });
+    return Object.keys(set).sort();
+  }
+
+  function labelFor(t, idx) {
+    if (t.volumeLabels && t.volumeLabels[idx]) return t.volumeLabels[idx];
+    return String(idx + 1);
+  }
+
+  function setOwnedCount(s) { return s.owned.filter(Boolean).length; }
+  function setComplete(t, s) { return t.total > 0 && setOwnedCount(s) >= t.total; }
+  function titleOwnedTotal(t) { return t.sets.reduce(function (sum, s) { return sum + setOwnedCount(s); }, 0); }
+  function titleSlotsTotal(t) { return t.total * t.sets.length; }
+  function isComplete(t) { return t.sets.length > 0 && t.sets.every(function (s) { return setComplete(t, s); }); }
+
+  function isDueSoon(t) {
+    if (!t.deadline) return false;
+    var d = new Date(t.deadline + "T00:00:00");
+    var now = new Date(); now.setHours(0, 0, 0, 0);
+    return (d - now) / 86400000 <= 7;
+  }
+
+  function escapeAttr(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  }
+
+  /* ---------- render ---------- */
+
+  function render() {
+    renderStats();
+    renderFlagFilters();
+    renderFilters();
+    renderTitles();
+    save();
+  }
+
+  function renderFlagFilters() {
+    [["filterStar", "star"], ["filterWarn", "warn"], ["filterTimer", "timer"]].forEach(function (pair) {
+      document.getElementById(pair[0]).setAttribute("aria-pressed", String(state.activeFlag === pair[1]));
+    });
+  }
+
+  function renderStats() {
+    var needAction = state.titles.filter(function (t) { return !isComplete(t); }).length;
+    var totalCost = state.titles.reduce(function (sum, t) { return sum + (t.cost || 0); }, 0);
+    document.getElementById("statNeedAction").textContent = needAction + "作品";
+    document.getElementById("statTotalCost").textContent = yen(totalCost);
+  }
+
+  function renderFilters() {
+    var wrap = document.getElementById("genreFilters");
+    var genres = ["all"].concat(allGenres());
+    wrap.innerHTML = "";
+    genres.forEach(function (g) {
+      var btn = document.createElement("button");
+      btn.className = "chip"; btn.type = "button"; btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-pressed", String(state.activeGenre === g));
+      btn.textContent = g === "all" ? "すべて" : g;
+      btn.addEventListener("click", function () { state.activeGenre = g; render(); });
+      wrap.appendChild(btn);
+    });
+  }
+
+  function renderTitles() {
+    var list = document.getElementById("titleList");
+    var empty = document.getElementById("emptyState");
+    list.innerHTML = "";
+    var items = state.titles.filter(function (t) {
+      var genreOk = state.activeGenre === "all" || t.genre === state.activeGenre;
+      var flagOk = !state.activeFlag || t.flags[state.activeFlag];
+      return genreOk && flagOk;
+    });
+    empty.hidden = state.titles.length > 0;
+    items.forEach(function (t) { list.appendChild(renderTitleCard(t)); });
+  }
+
+  function renderTitleCard(t) {
+    var card = document.createElement("article");
+    card.className = "title-card";
+
+    var head = document.createElement("div");
+    head.className = "head";
+
+    var nameBlock = document.createElement("div");
+    nameBlock.className = "name-block";
+    var h3 = document.createElement("h3");
+    h3.textContent = t.name;
+    if (isComplete(t)) {
+      var badge = document.createElement("span");
+      badge.className = "complete-badge";
+      badge.textContent = "コンプリート";
+      h3.appendChild(badge);
+    }
+    nameBlock.appendChild(h3);
+
+    var flagRow = document.createElement("div");
+    flagRow.className = "flag-row";
+    [["star", "⭐", "お気に入り"], ["warn", "⚠️", "注意"], ["timer", "⏱️", "急ぎ"]].forEach(function (f) {
+      var key = f[0], icon = f[1], label = f[2];
+      var fb = document.createElement("button");
+      fb.type = "button";
+      fb.className = "flag-btn " + key;
+      fb.textContent = icon;
+      fb.setAttribute("aria-pressed", String(!!t.flags[key]));
+      fb.setAttribute("aria-label", label + (t.flags[key] ? "を解除" : "にする"));
+      fb.addEventListener("click", function () {
+        t.flags[key] = !t.flags[key];
+        render();
+      });
+      flagRow.appendChild(fb);
+    });
+    nameBlock.appendChild(flagRow);
+
+    var meta = document.createElement("div");
+    meta.className = "meta-line";
+    if (t.genre) {
+      var g = document.createElement("span"); g.className = "genre-tag"; g.textContent = t.genre;
+      meta.appendChild(g);
+    }
+    var setsInfo = document.createElement("span");
+    setsInfo.textContent = t.sets.length + "セット制作中";
+    meta.appendChild(setsInfo);
+    if (t.deadline) {
+      var dl = document.createElement("span");
+      dl.className = "deadline" + (isDueSoon(t) && !isComplete(t) ? " due-soon" : "");
+      dl.textContent = "締切 " + t.deadline;
+      meta.appendChild(dl);
+    }
+    nameBlock.appendChild(meta);
+    head.appendChild(nameBlock);
+
+    var prog = document.createElement("div");
+    prog.className = "progress-mini nums";
+    prog.innerHTML = '<span class="frac-owned">' + titleOwnedTotal(t) + "</span>" + '<span class="frac-total">/' + titleSlotsTotal(t) + "</span>";
+    head.appendChild(prog);
+
+    card.appendChild(head);
+
+    t.sets.forEach(function (s, sIdx) {
+      var block = document.createElement("div");
+      block.className = "set-block";
+
+      var label = document.createElement("div");
+      label.className = "set-block-label";
+      label.innerHTML =
+        "<span>" + escapeAttr(s.label) + (setComplete(t, s) ? "　✓" : "") + "</span>" +
+        '<span class="set-progress nums"><span class="owned-num">' + setOwnedCount(s) + "</span>/" + t.total + "</span>";
+      block.appendChild(label);
+
+      var grid = document.createElement("div");
+      grid.className = "vol-grid";
+      for (var i = 0; i < t.total; i++) {
+        (function (i) {
+          var chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "vol-chip" + (s.owned[i] ? " owned" : "");
+          chip.textContent = labelFor(t, i);
+          chip.setAttribute("aria-pressed", String(!!s.owned[i]));
+          chip.setAttribute("aria-label", labelFor(t, i) + "巻 " + (s.owned[i] ? "保有済み" : "不足"));
+          chip.addEventListener("click", function () {
+            s.owned[i] = !s.owned[i];
+            render();
+          });
+          grid.appendChild(chip);
+        })(i);
+      }
+      block.appendChild(grid);
+      card.appendChild(block);
+    });
+
+    var addSetBtn = document.createElement("button");
+    addSetBtn.type = "button";
+    addSetBtn.className = "add-set-btn";
+    addSetBtn.textContent = "＋ セットを追加（" + (t.sets.length + 1) + "セット目）";
+    addSetBtn.addEventListener("click", function () {
+      t.sets.push({ id: uid(), label: (t.sets.length + 1) + "セット目", owned: new Array(t.total).fill(false) });
+      render();
+    });
+    card.appendChild(addSetBtn);
+
+    head.addEventListener("click", function (e) {
+      if (e.target.closest(".vol-chip") || e.target.closest(".flag-btn")) return;
+      var isOpen = card.querySelector(".detail").classList.toggle("open");
+      openDetailId = isOpen ? t.id : null;
+    });
+
+    var detailEl = renderDetail(t);
+    if (openDetailId === t.id) detailEl.classList.add("open");
+    card.appendChild(detailEl);
+    return card;
+  }
+
+  function renderDetail(t) {
+    var wrap = document.createElement("div");
+    wrap.className = "detail";
+    wrap.innerHTML =
+      '<label class="field-label">購入理由・メモ</label>' +
+      '<input type="text" class="in-reason" placeholder="例：新刊発売にあわせて再読用" value="' + escapeAttr(t.reason || "") + '" style="margin-bottom:8px;" />' +
+      '<label class="field-label">締切日</label>' +
+      '<input type="date" class="in-deadline" value="' + escapeAttr(t.deadline || "") + '" style="margin-bottom:8px;" />' +
+      '<label class="field-label">仕入れ値（累計・円）</label>' +
+      '<input type="number" class="in-cost nums" min="0" value="' + (t.cost || 0) + '" style="margin-bottom:8px;" />' +
+      '<label class="field-label">今回買った額</label>' +
+      '<div class="field-row">' +
+        '<input type="number" class="in-add-amount nums" min="0" placeholder="円" />' +
+        '<button type="button" class="btn btn-primary btn-add-amount" style="flex:0 0 52px;" aria-label="今回買った額を累計に加算">➕</button>' +
+      "</div>" +
+      '<div class="detail-actions"><button type="button" class="btn-quiet danger-del">この作品を削除</button></div>';
+
+    wrap.querySelector(".in-reason").addEventListener("input", function (e) { t.reason = e.target.value; save(); });
+    wrap.querySelector(".in-deadline").addEventListener("change", function (e) { t.deadline = e.target.value; render(); });
+    wrap.querySelector(".in-cost").addEventListener("input", function (e) { t.cost = Number(e.target.value) || 0; render(); });
+    wrap.querySelector(".btn-add-amount").addEventListener("click", function () {
+      var addInput = wrap.querySelector(".in-add-amount");
+      var amount = Number(addInput.value) || 0;
+      if (amount === 0) return;
+      t.cost = (t.cost || 0) + amount;
+      addInput.value = "";
+      render();
+    });
+    wrap.querySelector(".danger-del").addEventListener("click", function () {
+      if (confirm(t.name + " を削除しますか？この操作は取り消せません。")) {
+        state.titles = state.titles.filter(function (x) { return x.id !== t.id; });
+        render();
+      }
+    });
+    return wrap;
+  }
+
+  /* ---------- add modal ---------- */
+
+  function openModal() {
+    modalSelectedGenre = "";
+    modalSetCount = 1;
+    document.getElementById("inName").value = "";
+    document.getElementById("inTotal").value = "";
+    document.getElementById("inLabels").value = "";
+    document.getElementById("inNewGenre").value = "";
+    document.getElementById("inReason").value = "";
+    document.getElementById("inDeadline").value = "";
+    document.getElementById("inCost").value = "";
+    document.getElementById("inAddAmount").value = "";
+    renderGenrePicker();
+    renderSetStepper();
+    document.getElementById("addModal").hidden = false;
+    document.getElementById("inName").focus();
+  }
+
+  function closeModal() {
+    document.getElementById("addModal").hidden = true;
+  }
+
+  function pickerGenres() {
+    var list = PRESET_GENRES.slice();
+    allGenres().forEach(function (g) { if (list.indexOf(g) === -1) list.push(g); });
+    return list;
+  }
+
+  function renderGenrePicker() {
+    var wrap = document.getElementById("genrePicker");
+    wrap.innerHTML = "";
+    pickerGenres().forEach(function (g) {
+      var btn = document.createElement("button");
+      btn.type = "button"; btn.className = "chip";
+      btn.setAttribute("aria-pressed", String(modalSelectedGenre === g));
+      btn.textContent = g;
+      btn.addEventListener("click", function () {
+        modalSelectedGenre = modalSelectedGenre === g ? "" : g;
+        renderGenrePicker();
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  document.getElementById("btnAddGenre").addEventListener("click", function () {
+    var v = document.getElementById("inNewGenre").value.trim();
+    if (!v) return;
+    modalSelectedGenre = v;
+    document.getElementById("inNewGenre").value = "";
+    var wrap = document.getElementById("genrePicker");
+    var exists = Array.prototype.some.call(wrap.children, function (c) { return c.textContent === v; });
+    if (!exists) {
+      var btn = document.createElement("button");
+      btn.type = "button"; btn.className = "chip"; btn.textContent = v;
+      btn.setAttribute("aria-pressed", "true");
+      btn.addEventListener("click", function () {
+        modalSelectedGenre = modalSelectedGenre === v ? "" : v;
+        renderGenrePicker();
+      });
+      wrap.appendChild(btn);
+    } else {
+      renderGenrePicker();
+    }
+  });
+
+  function renderSetStepper() {
+    document.getElementById("setCountValue").textContent = modalSetCount;
+    var names = [];
+    for (var i = 1; i <= modalSetCount; i++) names.push(i + "セット目");
+    document.getElementById("setPreview").textContent = names.join("、") + " が作成されます";
+  }
+
+  document.getElementById("btnSetMinus").addEventListener("click", function () {
+    modalSetCount = Math.max(1, modalSetCount - 1);
+    renderSetStepper();
+  });
+  document.getElementById("btnSetPlus").addEventListener("click", function () {
+    modalSetCount = Math.min(10, modalSetCount + 1);
+    renderSetStepper();
+  });
+
+  [["filterStar", "star"], ["filterWarn", "warn"], ["filterTimer", "timer"]].forEach(function (pair) {
+    document.getElementById(pair[0]).addEventListener("click", function () {
+      state.activeFlag = state.activeFlag === pair[1] ? null : pair[1];
+      render();
+    });
+  });
+
+  document.getElementById("btnModalAddAmount").addEventListener("click", function () {
+    var costInput = document.getElementById("inCost");
+    var addInput = document.getElementById("inAddAmount");
+    var amount = Number(addInput.value) || 0;
+    if (amount === 0) return;
+    costInput.value = (Number(costInput.value) || 0) + amount;
+    addInput.value = "";
+  });
+
+  document.getElementById("fabAdd").addEventListener("click", openModal);
+  document.getElementById("btnCloseModal").addEventListener("click", closeModal);
+  document.getElementById("addModal").addEventListener("click", function (e) {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  document.getElementById("btnAdd").addEventListener("click", function () {
+    var name = document.getElementById("inName").value.trim();
+    var totalInput = Number(document.getElementById("inTotal").value);
+    var labelsRaw = document.getElementById("inLabels").value.trim();
+    var reason = document.getElementById("inReason").value.trim();
+    var deadline = document.getElementById("inDeadline").value;
+    var initialCost = Number(document.getElementById("inCost").value) || 0;
+
+    if (!name) { alert("作品名を入力してください。"); return; }
+    if (!totalInput || totalInput < 1) { alert("既刊数を入力してください。"); return; }
+    var total = Math.min(totalInput, 200);
+
+    var volumeLabels = null;
+    if (labelsRaw) {
+      volumeLabels = labelsRaw.split(/[,、・]/).map(function (s) { return s.trim(); }).filter(Boolean).slice(0, total);
+    }
+
+    var sets = [];
+    for (var i = 1; i <= modalSetCount; i++) {
+      sets.push({ id: uid(), label: i + "セット目", owned: new Array(total).fill(false) });
+    }
+
+    state.titles.unshift({
+      id: uid(),
+      name: name,
+      genre: modalSelectedGenre,
+      volumeLabels: volumeLabels,
+      total: total,
+      sets: sets,
+      cost: initialCost,
+      deadline: deadline,
+      reason: reason,
+      flags: { star: false, warn: false, timer: false }
+    });
+
+    closeModal();
+    render();
+  });
+
+  /* ---------- backup ---------- */
+
+  document.getElementById("btnExport").addEventListener("click", function () {
+    var jsonStr = JSON.stringify(state, null, 2);
+    document.getElementById("backupText").value = jsonStr;
+    document.getElementById("backupCopyState").textContent = "";
+    document.getElementById("backupModal").hidden = false;
+  });
+
+  document.getElementById("btnCloseBackup").addEventListener("click", function () {
+    document.getElementById("backupModal").hidden = true;
+  });
+  document.getElementById("backupModal").addEventListener("click", function (e) {
+    if (e.target === e.currentTarget) document.getElementById("backupModal").hidden = true;
+  });
+
+  document.getElementById("btnCopyBackup").addEventListener("click", function () {
+    var ta = document.getElementById("backupText");
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    var stateEl = document.getElementById("backupCopyState");
+    function ok() { stateEl.textContent = "コピーしました。メモアプリなどに貼り付けて保存してください。"; }
+    function fail() { stateEl.textContent = "自動コピーできませんでした。テキストは選択済みなので、そのまま長押し→コピーしてください。"; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(ok).catch(function () {
+        try { document.execCommand("copy") ? ok() : fail(); } catch (e) { fail(); }
+      });
+    } else {
+      try { document.execCommand("copy") ? ok() : fail(); } catch (e) { fail(); }
+    }
+  });
+
+  document.getElementById("btnImport").addEventListener("click", function () {
+    document.getElementById("fileImport").click();
+  });
+
+  document.getElementById("btnRestoreText").addEventListener("click", function () {
+    var raw = document.getElementById("restoreText").value.trim();
+    var stateEl = document.getElementById("restoreState");
+    if (!raw) { stateEl.textContent = "テキストが貼り付けられていません。"; return; }
+    try {
+      var data = JSON.parse(raw);
+      if (!data || !Array.isArray(data.titles)) throw new Error("invalid");
+      data.titles = data.titles.map(migrateTitle);
+      if (confirm("現在のデータを置き換えて復元しますか？")) {
+        state = data;
+        if (!state.activeGenre) state.activeGenre = "all";
+        if (state.activeFlag === undefined) state.activeFlag = null;
+        render();
+        document.getElementById("backupModal").hidden = true;
+      }
+    } catch (e) {
+      stateEl.textContent = "復元に失敗しました。貼り付けた内容を確認してください。";
+    }
+  });
+
+  document.getElementById("fileImport").addEventListener("change", function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var data = JSON.parse(reader.result);
+        if (!data || !Array.isArray(data.titles)) throw new Error("invalid");
+        data.titles = data.titles.map(migrateTitle);
+        if (confirm("現在のデータを置き換えて読み込みますか？")) {
+          state = data;
+          if (!state.activeGenre) state.activeGenre = "all";
+          render();
+        }
+      } catch (err) {
+        alert("読み込みに失敗しました。ファイルの形式を確認してください。");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  });
+
+  /* ---------- calculator ---------- */
+
+  var calc = { display: "0", prev: null, op: null, resetNext: false };
+
+  function calcFormatDisplay(s) {
+    var neg = s.charAt(0) === "-";
+    if (neg) s = s.slice(1);
+    var parts = s.split(".");
+    var intPart = parts[0] === "" ? "0" : parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    var out = intPart + (parts.length > 1 ? "." + parts[1] : "");
+    return (neg ? "-" : "") + out;
+  }
+
+  function calcNumFormat(n) {
+    if (!isFinite(n)) return "0";
+    var rounded = Math.round(n * 1e8) / 1e8;
+    return String(rounded);
+  }
+
+  function calcApply(a, b, op) {
+    switch (op) {
+      case "+": return a + b;
+      case "-": return a - b;
+      case "×": return a * b;
+      case "÷": return b === 0 ? 0 : a / b;
+      default: return b;
+    }
+  }
+
+  function renderCalc() {
+    var el = document.getElementById("calcDisplay");
+    var text = calcFormatDisplay(calc.display);
+    el.textContent = text;
+    el.classList.toggle("small", text.length > 10);
+  }
+
+  function calcInputDigit(d) {
+    if (calc.display === "0" || calc.resetNext) {
+      calc.display = d === "." ? "0." : d;
+      calc.resetNext = false;
+    } else {
+      if (d === "." && calc.display.indexOf(".") !== -1) return;
+      if (calc.display.replace("-", "").replace(".", "").length >= 12) return;
+      calc.display += d;
+    }
+    renderCalc();
+  }
+
+  function calcClear() {
+    calc = { display: "0", prev: null, op: null, resetNext: false };
+    renderCalc();
+  }
+
+  function calcSign() {
+    if (calc.display !== "0") {
+      calc.display = calc.display.charAt(0) === "-" ? calc.display.slice(1) : "-" + calc.display;
+    }
+    renderCalc();
+  }
+
+  function calcPercent() {
+    calc.display = calcNumFormat(parseFloat(calc.display) / 100);
+    renderCalc();
+  }
+
+  function calcSetOp(nextOp) {
+    var val = parseFloat(calc.display);
+    if (calc.op && !calc.resetNext) {
+      calc.prev = calcApply(calc.prev, val, calc.op);
+      calc.display = calcNumFormat(calc.prev);
+    } else {
+      calc.prev = val;
+    }
+    calc.op = nextOp;
+    calc.resetNext = true;
+    renderCalc();
+  }
+
+  function calcEquals() {
+    if (calc.op == null) return;
+    var val = parseFloat(calc.display);
+    calc.display = calcNumFormat(calcApply(calc.prev, val, calc.op));
+    calc.prev = null;
+    calc.op = null;
+    calc.resetNext = true;
+    renderCalc();
+  }
+
+  document.querySelectorAll(".calc-btn[data-digit]").forEach(function (btn) {
+    btn.addEventListener("click", function () { calcInputDigit(btn.getAttribute("data-digit")); });
+  });
+  document.querySelectorAll(".calc-btn[data-op]").forEach(function (btn) {
+    btn.addEventListener("click", function () { calcSetOp(btn.getAttribute("data-op")); });
+  });
+  document.querySelector('[data-action="clear"]').addEventListener("click", calcClear);
+  document.querySelector('[data-action="sign"]').addEventListener("click", calcSign);
+  document.querySelector('[data-action="percent"]').addEventListener("click", calcPercent);
+  document.querySelector('[data-action="equals"]').addEventListener("click", calcEquals);
+
+  document.getElementById("fabCalc").addEventListener("click", function () {
+    document.getElementById("calcModal").hidden = false;
+  });
+  document.getElementById("btnCloseCalc").addEventListener("click", function () {
+    document.getElementById("calcModal").hidden = true;
+  });
+  document.getElementById("calcModal").addEventListener("click", function (e) {
+    if (e.target === e.currentTarget) document.getElementById("calcModal").hidden = true;
+  });
+
+  render();
+})();
+</script>
