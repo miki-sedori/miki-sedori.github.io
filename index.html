@@ -195,6 +195,13 @@
     border-radius: 999px; padding: 1px 8px; margin-left: 6px; white-space: nowrap;
   }
   .sold-badge.negative { color: var(--missing); background: var(--missing-bg); }
+  .sold-panel {
+    margin-top: 8px; padding: 10px; border-radius: 12px;
+    background: var(--bg-soft); border: 1px solid var(--card-border);
+  }
+  .sold-panel .field-row:last-of-type { margin-bottom: 0; }
+  .sold-profit-line { font-size: 13px; font-weight: 700; color: var(--owned); margin-top: 4px; }
+  .sold-profit-line.negative { color: var(--missing); }
 
   .vol-grid { display: flex; flex-wrap: wrap; gap: 6px; }
   .vol-chip {
@@ -335,7 +342,7 @@
         <div class="value nums" id="statNeedAction">0作品</div>
       </div>
       <div class="stat-tile money">
-        <div class="label">累計仕入れ額</div>
+        <div class="label">残り仕入れ額</div>
         <div class="value nums" id="statTotalCost">¥0</div>
       </div>
       <div class="stat-tile profit">
@@ -518,8 +525,15 @@
       if (s.sold === undefined) s.sold = false;
       if (s.soldAmount === undefined) s.soldAmount = 0;
       if (s.salePrice === undefined) s.salePrice = 0;
-      if (s.hasSaleData === undefined) s.hasSaleData = false;
+      if (s.shippingFee === undefined) s.shippingFee = 0;
+      if (s.commissionFee === undefined) s.commissionFee = 0;
     });
+    if (!t._costModelV2) {
+      t.sets.forEach(function (s) {
+        if (s.sold) t.cost = (t.cost || 0) + (s.soldAmount || 0);
+      });
+      t._costModelV2 = true;
+    }
     return t;
   }
 
@@ -569,6 +583,11 @@
   function titleOwnedTotal(t) { return t.sets.reduce(function (sum, s) { return sum + setOwnedCount(s); }, 0); }
   function titleSlotsTotal(t) { return t.total * t.sets.length; }
   function isComplete(t) { return t.sets.length > 0 && t.sets.every(function (s) { return setComplete(t, s); }); }
+  function outstandingCost(t) {
+    var recouped = t.sets.reduce(function (sum, s) { return sum + (s.sold ? (s.soldAmount || 0) : 0); }, 0);
+    return Math.max(0, (t.cost || 0) - recouped);
+  }
+  function setProfit(s) { return (s.salePrice || 0) - (s.shippingFee || 0) - (s.commissionFee || 0) - (s.soldAmount || 0); }
 
   function isDueSoon(t) {
     if (!t.deadline) return false;
@@ -599,11 +618,11 @@
 
   function renderStats() {
     var needAction = state.titles.filter(function (t) { return !isComplete(t); }).length;
-    var totalCost = state.titles.reduce(function (sum, t) { return sum + (t.cost || 0); }, 0);
+    var totalCost = state.titles.reduce(function (sum, t) { return sum + outstandingCost(t); }, 0);
     var totalProfit = 0;
     state.titles.forEach(function (t) {
       t.sets.forEach(function (s) {
-        if (s.sold && s.hasSaleData) totalProfit += (s.salePrice - s.soldAmount);
+        if (s.sold) totalProfit += setProfit(s);
       });
     });
     document.getElementById("statNeedAction").textContent = needAction + "作品";
@@ -709,12 +728,10 @@
       var label = document.createElement("div");
       label.className = "set-block-label";
       var profitText = "";
-      if (s.sold && s.hasSaleData) {
-        var setProfit = s.salePrice - s.soldAmount;
-        profitText = '<span class="sold-badge' + (setProfit < 0 ? " negative" : "") + '">売却済み ' +
-          (setProfit < 0 ? "-" : "+") + yen(Math.abs(setProfit)).replace("¥", "") + "円</span>";
-      } else if (s.sold) {
-        profitText = '<span class="sold-badge">売却済み</span>';
+      if (s.sold) {
+        var pv = setProfit(s);
+        profitText = '<span class="sold-badge' + (pv < 0 ? " negative" : "") + '">売却済み ' +
+          (pv < 0 ? "-" : "+") + yen(Math.abs(pv)).replace("¥", "") + "円</span>";
       }
       label.innerHTML =
         "<span>" + escapeAttr(s.label) + (setComplete(t, s) ? "　✓" : "") + profitText + "</span>" +
@@ -750,40 +767,18 @@
           e.stopPropagation();
         });
         cb.addEventListener("change", function () {
-          if (cb.checked) {
-            var input = prompt("このセットにかかった仕入れ値はいくらですか？（累計の仕入れ値からこの分を差し引きます）", "");
-            var amount = Number(input);
-            if (input === null || !input || isNaN(amount) || amount < 0) {
-              cb.checked = false;
-              return;
-            }
-            t.cost = Math.max(0, (t.cost || 0) - amount);
-            s.sold = true;
-            s.soldAmount = amount;
-
-            var saleInput = prompt("この分はいくらで売れましたか？（利益の計算に使います。分からなければ空欄でOK）", "");
-            var salePrice = Number(saleInput);
-            if (saleInput !== null && saleInput !== "" && !isNaN(salePrice) && salePrice >= 0) {
-              s.salePrice = salePrice;
-              s.hasSaleData = true;
-            } else {
-              s.salePrice = 0;
-              s.hasSaleData = false;
-            }
-          } else {
-            t.cost = (t.cost || 0) + (s.soldAmount || 0);
-            s.sold = false;
-            s.soldAmount = 0;
-            s.salePrice = 0;
-            s.hasSaleData = false;
-          }
+          s.sold = cb.checked;
           render();
         });
         var cbText = document.createElement("span");
-        cbText.textContent = "売れた（このセット分の仕入れ値を差し引く）";
+        cbText.textContent = "売れた";
         soldRow.appendChild(cb);
         soldRow.appendChild(cbText);
         block.appendChild(soldRow);
+
+        if (s.sold) {
+          block.appendChild(renderSoldPanel(t, s));
+        }
       }
 
       card.appendChild(block);
@@ -794,7 +789,7 @@
     addSetBtn.className = "add-set-btn";
     addSetBtn.textContent = "＋ セットを追加（" + (t.sets.length + 1) + "セット目）";
     addSetBtn.addEventListener("click", function () {
-      t.sets.push({ id: uid(), label: (t.sets.length + 1) + "セット目", owned: new Array(t.total).fill(false), sold: false, soldAmount: 0, salePrice: 0, hasSaleData: false });
+      t.sets.push({ id: uid(), label: (t.sets.length + 1) + "セット目", owned: new Array(t.total).fill(false), sold: false, soldAmount: 0, salePrice: 0, shippingFee: 0, commissionFee: 0 });
       render();
     });
     card.appendChild(addSetBtn);
@@ -809,6 +804,37 @@
     if (openDetailId === t.id) detailEl.classList.add("open");
     card.appendChild(detailEl);
     return card;
+  }
+
+  function renderSoldPanel(t, s) {
+    var wrap = document.createElement("div");
+    wrap.className = "sold-panel";
+
+    function fieldsHtml() {
+      var pv = setProfit(s);
+      return (
+        '<div class="field-row">' +
+          '<div><label class="field-label">このセットの仕入れ値</label><input type="number" class="nums in-sold-cost" min="0" value="' + (s.soldAmount || 0) + '" /></div>' +
+          '<div><label class="field-label">販売価格</label><input type="number" class="nums in-sale-price" min="0" value="' + (s.salePrice || 0) + '" /></div>' +
+        "</div>" +
+        '<div class="field-row">' +
+          '<div><label class="field-label">送料</label><input type="number" class="nums in-shipping" min="0" value="' + (s.shippingFee || 0) + '" /></div>' +
+          '<div><label class="field-label">手数料</label><input type="number" class="nums in-commission" min="0" value="' + (s.commissionFee || 0) + '" /></div>' +
+        "</div>" +
+        '<div class="sold-profit-line' + (pv < 0 ? " negative" : "") + '">利益：' + (pv < 0 ? "-" : "+") + yen(Math.abs(pv)) + "</div>"
+      );
+    }
+
+    function wire() {
+      wrap.querySelector(".in-sold-cost").addEventListener("change", function (e) { s.soldAmount = Number(e.target.value) || 0; render(); });
+      wrap.querySelector(".in-sale-price").addEventListener("change", function (e) { s.salePrice = Number(e.target.value) || 0; render(); });
+      wrap.querySelector(".in-shipping").addEventListener("change", function (e) { s.shippingFee = Number(e.target.value) || 0; render(); });
+      wrap.querySelector(".in-commission").addEventListener("change", function (e) { s.commissionFee = Number(e.target.value) || 0; render(); });
+    }
+
+    wrap.innerHTML = fieldsHtml();
+    wire();
+    return wrap;
   }
 
   function renderDetail(t) {
@@ -971,7 +997,7 @@
 
     var sets = [];
     for (var i = 1; i <= modalSetCount; i++) {
-      sets.push({ id: uid(), label: i + "セット目", owned: new Array(total).fill(false), sold: false, soldAmount: 0, salePrice: 0, hasSaleData: false });
+      sets.push({ id: uid(), label: i + "セット目", owned: new Array(total).fill(false), sold: false, soldAmount: 0, salePrice: 0, shippingFee: 0, commissionFee: 0 });
     }
 
     state.titles.unshift({
