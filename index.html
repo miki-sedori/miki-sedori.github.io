@@ -127,12 +127,14 @@
   header.top .titlebar { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
   header.top .titlebar h1 { font-size: 20px; letter-spacing: 0.01em; }
   header.top .titlebar .sub { font-size: 12px; color: var(--ink-soft); }
-  .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .stat-tile { background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; padding: 10px 14px; box-shadow: var(--shadow); }
-  .stat-tile .label { font-size: 11px; color: var(--ink-soft); letter-spacing: 0.04em; }
-  .stat-tile .value { font-size: 22px; font-weight: 700; margin-top: 2px; }
+  .stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .stat-tile { background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; padding: 10px 12px; box-shadow: var(--shadow); }
+  .stat-tile .label { font-size: 10.5px; color: var(--ink-soft); letter-spacing: 0.02em; }
+  .stat-tile .value { font-size: 19px; font-weight: 700; margin-top: 2px; }
   .stat-tile.warn .value { color: var(--missing); }
   .stat-tile.money .value { color: var(--accent-2); }
+  .stat-tile.profit .value { color: var(--owned); }
+  .stat-tile.profit .value.negative { color: var(--missing); }
 
   .filters { display: flex; gap: 6px; overflow-x: auto; padding: 12px 0 2px; scrollbar-width: none; }
   .filters::-webkit-scrollbar { display: none; }
@@ -181,6 +183,18 @@
   }
   .set-block-label .set-progress { font-variant-numeric: tabular-nums; }
   .set-block-label .set-progress .owned-num { color: var(--owned); }
+
+  .set-block.sold { opacity: 0.5; }
+  .sold-row {
+    display: flex; align-items: center; gap: 6px; margin-top: 6px;
+    font-size: 12px; color: var(--ink-soft);
+  }
+  .sold-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+  .sold-badge {
+    font-size: 10px; font-weight: 700; color: var(--owned); background: var(--owned-bg);
+    border-radius: 999px; padding: 1px 8px; margin-left: 6px; white-space: nowrap;
+  }
+  .sold-badge.negative { color: var(--missing); background: var(--missing-bg); }
 
   .vol-grid { display: flex; flex-wrap: wrap; gap: 6px; }
   .vol-chip {
@@ -323,6 +337,10 @@
       <div class="stat-tile money">
         <div class="label">累計仕入れ額</div>
         <div class="value nums" id="statTotalCost">¥0</div>
+      </div>
+      <div class="stat-tile profit">
+        <div class="label">累計利益</div>
+        <div class="value nums" id="statProfit">¥0</div>
       </div>
     </div>
     <div class="flag-filters" id="flagFilters" role="tablist" aria-label="タグで絞り込み">
@@ -496,6 +514,12 @@
     if (t.deadline === undefined) t.deadline = "";
     if (t.reason === undefined) t.reason = "";
     if (!t.flags) t.flags = { star: false, warn: false, timer: false };
+    t.sets.forEach(function (s) {
+      if (s.sold === undefined) s.sold = false;
+      if (s.soldAmount === undefined) s.soldAmount = 0;
+      if (s.salePrice === undefined) s.salePrice = 0;
+      if (s.hasSaleData === undefined) s.hasSaleData = false;
+    });
     return t;
   }
 
@@ -576,8 +600,17 @@
   function renderStats() {
     var needAction = state.titles.filter(function (t) { return !isComplete(t); }).length;
     var totalCost = state.titles.reduce(function (sum, t) { return sum + (t.cost || 0); }, 0);
+    var totalProfit = 0;
+    state.titles.forEach(function (t) {
+      t.sets.forEach(function (s) {
+        if (s.sold && s.hasSaleData) totalProfit += (s.salePrice - s.soldAmount);
+      });
+    });
     document.getElementById("statNeedAction").textContent = needAction + "作品";
     document.getElementById("statTotalCost").textContent = yen(totalCost);
+    var profitEl = document.getElementById("statProfit");
+    profitEl.textContent = (totalProfit < 0 ? "-" : "") + yen(Math.abs(totalProfit));
+    profitEl.classList.toggle("negative", totalProfit < 0);
   }
 
   function renderFilters() {
@@ -671,12 +704,20 @@
 
     t.sets.forEach(function (s, sIdx) {
       var block = document.createElement("div");
-      block.className = "set-block";
+      block.className = "set-block" + (s.sold ? " sold" : "");
 
       var label = document.createElement("div");
       label.className = "set-block-label";
+      var profitText = "";
+      if (s.sold && s.hasSaleData) {
+        var setProfit = s.salePrice - s.soldAmount;
+        profitText = '<span class="sold-badge' + (setProfit < 0 ? " negative" : "") + '">売却済み ' +
+          (setProfit < 0 ? "-" : "+") + yen(Math.abs(setProfit)).replace("¥", "") + "円</span>";
+      } else if (s.sold) {
+        profitText = '<span class="sold-badge">売却済み</span>';
+      }
       label.innerHTML =
-        "<span>" + escapeAttr(s.label) + (setComplete(t, s) ? "　✓" : "") + "</span>" +
+        "<span>" + escapeAttr(s.label) + (setComplete(t, s) ? "　✓" : "") + profitText + "</span>" +
         '<span class="set-progress nums"><span class="owned-num">' + setOwnedCount(s) + "</span>/" + t.total + "</span>";
       block.appendChild(label);
 
@@ -698,6 +739,53 @@
         })(i);
       }
       block.appendChild(grid);
+
+      if (setComplete(t, s)) {
+        var soldRow = document.createElement("label");
+        soldRow.className = "sold-row";
+        var cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!s.sold;
+        cb.addEventListener("click", function (e) {
+          e.stopPropagation();
+        });
+        cb.addEventListener("change", function () {
+          if (cb.checked) {
+            var input = prompt("このセットにかかった仕入れ値はいくらですか？（累計の仕入れ値からこの分を差し引きます）", "");
+            var amount = Number(input);
+            if (input === null || !input || isNaN(amount) || amount < 0) {
+              cb.checked = false;
+              return;
+            }
+            t.cost = Math.max(0, (t.cost || 0) - amount);
+            s.sold = true;
+            s.soldAmount = amount;
+
+            var saleInput = prompt("この分はいくらで売れましたか？（利益の計算に使います。分からなければ空欄でOK）", "");
+            var salePrice = Number(saleInput);
+            if (saleInput !== null && saleInput !== "" && !isNaN(salePrice) && salePrice >= 0) {
+              s.salePrice = salePrice;
+              s.hasSaleData = true;
+            } else {
+              s.salePrice = 0;
+              s.hasSaleData = false;
+            }
+          } else {
+            t.cost = (t.cost || 0) + (s.soldAmount || 0);
+            s.sold = false;
+            s.soldAmount = 0;
+            s.salePrice = 0;
+            s.hasSaleData = false;
+          }
+          render();
+        });
+        var cbText = document.createElement("span");
+        cbText.textContent = "売れた（このセット分の仕入れ値を差し引く）";
+        soldRow.appendChild(cb);
+        soldRow.appendChild(cbText);
+        block.appendChild(soldRow);
+      }
+
       card.appendChild(block);
     });
 
@@ -706,7 +794,7 @@
     addSetBtn.className = "add-set-btn";
     addSetBtn.textContent = "＋ セットを追加（" + (t.sets.length + 1) + "セット目）";
     addSetBtn.addEventListener("click", function () {
-      t.sets.push({ id: uid(), label: (t.sets.length + 1) + "セット目", owned: new Array(t.total).fill(false) });
+      t.sets.push({ id: uid(), label: (t.sets.length + 1) + "セット目", owned: new Array(t.total).fill(false), sold: false, soldAmount: 0, salePrice: 0, hasSaleData: false });
       render();
     });
     card.appendChild(addSetBtn);
@@ -883,7 +971,7 @@
 
     var sets = [];
     for (var i = 1; i <= modalSetCount; i++) {
-      sets.push({ id: uid(), label: i + "セット目", owned: new Array(total).fill(false) });
+      sets.push({ id: uid(), label: i + "セット目", owned: new Array(total).fill(false), sold: false, soldAmount: 0, salePrice: 0, hasSaleData: false });
     }
 
     state.titles.unshift({
