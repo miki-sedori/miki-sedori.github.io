@@ -1,3 +1,8 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>揃える本</title>
 <style>
   :root {
@@ -16,6 +21,7 @@
     --owned-bg: #e2ecdf;
     --focus: #2b5f5a;
     --overlay: rgba(30, 26, 20, 0.42);
+    --backdrop: #dcd4bf;
     --shadow: 0 1px 2px rgba(43,38,32,0.06), 0 4px 14px rgba(43,38,32,0.06);
     --shadow-lg: 0 8px 30px rgba(43,38,32,0.22);
   }
@@ -36,6 +42,7 @@
       --owned-bg: #1f3226;
       --focus: #7fcabd;
       --overlay: rgba(0, 0, 0, 0.55);
+      --backdrop: #0f0d0b;
       --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.35);
       --shadow-lg: 0 10px 34px rgba(0,0,0,0.5);
     }
@@ -46,6 +53,7 @@
     --accent-2: #e0a567; --missing: #e88569; --missing-bg: #3a2620;
     --owned: #86cba0; --owned-bg: #1f3226; --focus: #7fcabd;
     --overlay: rgba(0, 0, 0, 0.55);
+    --backdrop: #0f0d0b;
     --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.35);
     --shadow-lg: 0 10px 34px rgba(0,0,0,0.5);
   }
@@ -55,6 +63,7 @@
     --accent-2: #b5652b; --missing: #c24632; --missing-bg: #f6e2dc;
     --owned: #3e7d5a; --owned-bg: #e2ecdf; --focus: #2b5f5a;
     --overlay: rgba(30, 26, 20, 0.42);
+    --backdrop: #dcd4bf;
     --shadow: 0 1px 2px rgba(43,38,32,0.06), 0 4px 14px rgba(43,38,32,0.06);
     --shadow-lg: 0 8px 30px rgba(43,38,32,0.22);
   }
@@ -63,15 +72,36 @@
   html, body {
     margin: 0;
     padding: 0;
-    background: var(--bg);
+    height: 100%;
+    background: var(--backdrop);
     color: var(--ink);
     max-width: 100%;
-    overflow-x: hidden;
+    overflow: hidden;
   }
   body {
     font-family: "Hiragino Kaku Gothic ProN", "BIZ UDGothic", "Yu Gothic", "Noto Sans JP", sans-serif;
     font-size: 15px;
     line-height: 1.6;
+  }
+
+  /* phone-frame shell: constrains the whole app to a phone-width column,
+     and (via the transform) becomes the containing block for position:fixed
+     children, so FABs/modals stay scoped to the frame instead of the full browser window */
+  .app-shell {
+    position: relative;
+    max-width: 480px;
+    margin: 0 auto;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    background: var(--bg);
+    transform: translateZ(0);
+    box-shadow: 0 0 0 1px var(--card-border), 0 24px 64px rgba(0,0,0,0.18);
+  }
+  .scroll-area {
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding-bottom: 90px;
   }
   h1, h2, h3, .display {
@@ -274,7 +304,11 @@
     .vol-chip, .btn, .chip, .fab { transition: transform 0.1s ease, background-color 0.15s ease; }
   }
 </style>
+</head>
+<body>
 
+<div class="app-shell">
+<div class="scroll-area">
 <div class="wrap">
   <header class="top">
     <div class="titlebar">
@@ -309,6 +343,7 @@
     <button class="btn btn-ghost" id="btnImport">読み込み</button>
     <input type="file" id="fileImport" accept="application/json" hidden />
   </footer>
+</div>
 </div>
 
 <button class="fab" id="fabAdd" aria-label="作品を追加" type="button">＋</button>
@@ -432,6 +467,7 @@
 
     <button class="btn btn-primary" id="btnAdd" style="margin-top:14px;">この作品を追加する</button>
   </div>
+</div>
 </div>
 
 <script>
@@ -1058,3 +1094,5 @@
   render();
 })();
 </script>
+</body>
+</html>
