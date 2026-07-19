@@ -183,6 +183,19 @@
   }
   .set-block-label .set-progress { font-variant-numeric: tabular-nums; }
   .set-block-label .set-progress .owned-num { color: var(--owned); }
+  .set-label-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+  .set-del-btn {
+    width: 20px; height: 20px; border-radius: 6px; border: 1px solid var(--card-border);
+    background: transparent; color: var(--ink-soft); font-size: 13px; line-height: 1;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+  }
+  .set-del-btn:hover { color: var(--missing); border-color: var(--missing); }
+
+  .set-cost-panel {
+    margin-top: 8px; padding: 10px; border-radius: 12px;
+    background: var(--bg-soft); border: 1px solid var(--card-border);
+  }
+  .set-cost-panel .field-row:last-of-type { margin-bottom: 0; }
 
   .set-block.sold { opacity: 0.5; }
   .sold-row {
@@ -481,14 +494,7 @@
       </div>
     </div>
 
-    <label class="field-label" for="inCost">仕入れ値（累計・円）</label>
-    <input type="number" id="inCost" class="nums" min="0" placeholder="0" style="margin-bottom:8px;" />
-
-    <label class="field-label" for="inAddAmount">今回買った額</label>
-    <div class="field-row">
-      <input type="number" id="inAddAmount" class="nums" min="0" placeholder="円" />
-      <button type="button" class="btn btn-ghost" id="btnModalAddAmount" style="flex:0 0 52px;" aria-label="今回買った額を仕入れ値に加算">➕</button>
-    </div>
+    <div class="hint" style="margin-bottom:8px;">仕入れ値はセットごとに、作成後の画面から入力できます。</div>
 
     <button class="btn btn-primary" id="btnAdd" style="margin-top:14px;">この作品を追加する</button>
   </div>
@@ -511,28 +517,38 @@
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
 
+  function makeSet(label, total) {
+    return {
+      id: uid(), label: label, owned: new Array(total).fill(false),
+      cost: 0, memo: "",
+      sold: false, salePrice: 0, shippingFee: 0, commissionFee: 0
+    };
+  }
+
   function migrateTitle(t) {
     if (!t.sets) {
       t.sets = [{ id: uid(), label: "1セット目", owned: t.owned || new Array(t.total || 0).fill(false) }];
       delete t.owned;
     }
     if (t.volumeLabels === undefined) t.volumeLabels = null;
-    if (t.cost === undefined) t.cost = 0;
     if (t.deadline === undefined) t.deadline = "";
     if (t.reason === undefined) t.reason = "";
     if (!t.flags) t.flags = { star: false, warn: false, timer: false };
     t.sets.forEach(function (s) {
       if (s.sold === undefined) s.sold = false;
-      if (s.soldAmount === undefined) s.soldAmount = 0;
       if (s.salePrice === undefined) s.salePrice = 0;
       if (s.shippingFee === undefined) s.shippingFee = 0;
       if (s.commissionFee === undefined) s.commissionFee = 0;
+      if (s.cost === undefined) s.cost = s.soldAmount !== undefined ? s.soldAmount : 0;
+      if (s.memo === undefined) s.memo = "";
     });
-    if (!t._costModelV2) {
-      t.sets.forEach(function (s) {
-        if (s.sold) t.cost = (t.cost || 0) + (s.soldAmount || 0);
-      });
-      t._costModelV2 = true;
+    if (!t._perSetCostMigrated) {
+      var legacyPool = (t.cost || 0);
+      if (legacyPool > 0 && t.sets[0]) {
+        t.sets[0].cost = (t.sets[0].cost || 0) + legacyPool;
+      }
+      t.cost = 0;
+      t._perSetCostMigrated = true;
     }
     return t;
   }
@@ -584,10 +600,9 @@
   function titleSlotsTotal(t) { return t.total * t.sets.length; }
   function isComplete(t) { return t.sets.length > 0 && t.sets.every(function (s) { return setComplete(t, s); }); }
   function outstandingCost(t) {
-    var recouped = t.sets.reduce(function (sum, s) { return sum + (s.sold ? (s.soldAmount || 0) : 0); }, 0);
-    return Math.max(0, (t.cost || 0) - recouped);
+    return t.sets.reduce(function (sum, s) { return sum + (s.sold ? 0 : (s.cost || 0)); }, 0);
   }
-  function setProfit(s) { return (s.salePrice || 0) - (s.shippingFee || 0) - (s.commissionFee || 0) - (s.soldAmount || 0); }
+  function setProfit(s) { return (s.salePrice || 0) - (s.shippingFee || 0) - (s.commissionFee || 0) - (s.cost || 0); }
 
   function isDueSoon(t) {
     if (!t.deadline) return false;
@@ -733,9 +748,32 @@
         profitText = '<span class="sold-badge' + (pv < 0 ? " negative" : "") + '">売却済み ' +
           (pv < 0 ? "-" : "+") + yen(Math.abs(pv)).replace("¥", "") + "円</span>";
       }
-      label.innerHTML =
-        "<span>" + escapeAttr(s.label) + (setComplete(t, s) ? "　✓" : "") + profitText + "</span>" +
-        '<span class="set-progress nums"><span class="owned-num">' + setOwnedCount(s) + "</span>/" + t.total + "</span>";
+      var nameSpan = document.createElement("span");
+      nameSpan.innerHTML = escapeAttr(s.label) + (setComplete(t, s) ? "　✓" : "") + profitText;
+      label.appendChild(nameSpan);
+
+      var rightWrap = document.createElement("span");
+      rightWrap.className = "set-label-right";
+      var progSpan = document.createElement("span");
+      progSpan.className = "set-progress nums";
+      progSpan.innerHTML = '<span class="owned-num">' + setOwnedCount(s) + "</span>/" + t.total;
+      rightWrap.appendChild(progSpan);
+      if (t.sets.length > 1) {
+        var delSetBtn = document.createElement("button");
+        delSetBtn.type = "button";
+        delSetBtn.className = "set-del-btn";
+        delSetBtn.textContent = "×";
+        delSetBtn.setAttribute("aria-label", s.label + "を削除");
+        delSetBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          if (confirm(s.label + "を削除しますか？このセットの記録は元に戻せません。")) {
+            t.sets = t.sets.filter(function (x) { return x.id !== s.id; });
+            render();
+          }
+        });
+        rightWrap.appendChild(delSetBtn);
+      }
+      label.appendChild(rightWrap);
       block.appendChild(label);
 
       var grid = document.createElement("div");
@@ -756,6 +794,25 @@
         })(i);
       }
       block.appendChild(grid);
+
+      var costPanel = document.createElement("div");
+      costPanel.className = "set-cost-panel";
+      costPanel.innerHTML =
+        '<div class="field-row">' +
+          '<div><label class="field-label">仕入れ値</label><input type="number" class="nums in-set-cost" min="0" value="' + (s.cost || 0) + '" /></div>' +
+          '<div><label class="field-label">メモ</label><input type="text" class="in-set-memo" value="' + escapeAttr(s.memo || "") + '" placeholder="例：ブックオフで購入" /></div>' +
+        "</div>" +
+        '<div class="cost-quick">' +
+          '<button type="button" data-add="10">+10円</button>' +
+          '<button type="button" data-add="100">+100円</button>' +
+          '<button type="button" data-add="110">+110円</button>' +
+        "</div>";
+      costPanel.querySelector(".in-set-cost").addEventListener("change", function (e) { s.cost = Number(e.target.value) || 0; render(); });
+      costPanel.querySelector(".in-set-memo").addEventListener("input", function (e) { s.memo = e.target.value; save(); });
+      costPanel.querySelectorAll("[data-add]").forEach(function (btn) {
+        btn.addEventListener("click", function () { s.cost = (s.cost || 0) + Number(btn.getAttribute("data-add")); render(); });
+      });
+      block.appendChild(costPanel);
 
       if (setComplete(t, s)) {
         var soldRow = document.createElement("label");
@@ -789,7 +846,7 @@
     addSetBtn.className = "add-set-btn";
     addSetBtn.textContent = "＋ セットを追加（" + (t.sets.length + 1) + "セット目）";
     addSetBtn.addEventListener("click", function () {
-      t.sets.push({ id: uid(), label: (t.sets.length + 1) + "セット目", owned: new Array(t.total).fill(false), sold: false, soldAmount: 0, salePrice: 0, shippingFee: 0, commissionFee: 0 });
+      t.sets.push(makeSet((t.sets.length + 1) + "セット目", t.total));
       render();
     });
     card.appendChild(addSetBtn);
@@ -813,20 +870,20 @@
     function fieldsHtml() {
       var pv = setProfit(s);
       return (
+        '<div class="hint" style="margin-bottom:6px;">このセットの仕入れ値：' + yen(s.cost || 0) + '（上の欄で修正できます）</div>' +
         '<div class="field-row">' +
-          '<div><label class="field-label">このセットの仕入れ値</label><input type="number" class="nums in-sold-cost" min="0" value="' + (s.soldAmount || 0) + '" /></div>' +
           '<div><label class="field-label">販売価格</label><input type="number" class="nums in-sale-price" min="0" value="' + (s.salePrice || 0) + '" /></div>' +
+          '<div><label class="field-label">送料</label><input type="number" class="nums in-shipping" min="0" value="' + (s.shippingFee || 0) + '" /></div>' +
         "</div>" +
         '<div class="field-row">' +
-          '<div><label class="field-label">送料</label><input type="number" class="nums in-shipping" min="0" value="' + (s.shippingFee || 0) + '" /></div>' +
           '<div><label class="field-label">手数料</label><input type="number" class="nums in-commission" min="0" value="' + (s.commissionFee || 0) + '" /></div>' +
+          "<div></div>" +
         "</div>" +
         '<div class="sold-profit-line' + (pv < 0 ? " negative" : "") + '">利益：' + (pv < 0 ? "-" : "+") + yen(Math.abs(pv)) + "</div>"
       );
     }
 
     function wire() {
-      wrap.querySelector(".in-sold-cost").addEventListener("change", function (e) { s.soldAmount = Number(e.target.value) || 0; render(); });
       wrap.querySelector(".in-sale-price").addEventListener("change", function (e) { s.salePrice = Number(e.target.value) || 0; render(); });
       wrap.querySelector(".in-shipping").addEventListener("change", function (e) { s.shippingFee = Number(e.target.value) || 0; render(); });
       wrap.querySelector(".in-commission").addEventListener("change", function (e) { s.commissionFee = Number(e.target.value) || 0; render(); });
@@ -845,26 +902,10 @@
       '<input type="text" class="in-reason" placeholder="例：新刊発売にあわせて再読用" value="' + escapeAttr(t.reason || "") + '" style="margin-bottom:8px;" />' +
       '<label class="field-label">締切日</label>' +
       '<input type="date" class="in-deadline" value="' + escapeAttr(t.deadline || "") + '" style="margin-bottom:8px;" />' +
-      '<label class="field-label">仕入れ値（累計・円）</label>' +
-      '<input type="number" class="in-cost nums" min="0" value="' + (t.cost || 0) + '" style="margin-bottom:8px;" />' +
-      '<label class="field-label">今回買った額</label>' +
-      '<div class="field-row">' +
-        '<input type="number" class="in-add-amount nums" min="0" placeholder="円" />' +
-        '<button type="button" class="btn btn-primary btn-add-amount" style="flex:0 0 52px;" aria-label="今回買った額を累計に加算">➕</button>' +
-      "</div>" +
       '<div class="detail-actions"><button type="button" class="btn-quiet danger-del">この作品を削除</button></div>';
 
     wrap.querySelector(".in-reason").addEventListener("input", function (e) { t.reason = e.target.value; save(); });
     wrap.querySelector(".in-deadline").addEventListener("change", function (e) { t.deadline = e.target.value; render(); });
-    wrap.querySelector(".in-cost").addEventListener("input", function (e) { t.cost = Number(e.target.value) || 0; render(); });
-    wrap.querySelector(".btn-add-amount").addEventListener("click", function () {
-      var addInput = wrap.querySelector(".in-add-amount");
-      var amount = Number(addInput.value) || 0;
-      if (amount === 0) return;
-      t.cost = (t.cost || 0) + amount;
-      addInput.value = "";
-      render();
-    });
     wrap.querySelector(".danger-del").addEventListener("click", function () {
       if (confirm(t.name + " を削除しますか？この操作は取り消せません。")) {
         state.titles = state.titles.filter(function (x) { return x.id !== t.id; });
@@ -885,8 +926,6 @@
     document.getElementById("inNewGenre").value = "";
     document.getElementById("inReason").value = "";
     document.getElementById("inDeadline").value = "";
-    document.getElementById("inCost").value = "";
-    document.getElementById("inAddAmount").value = "";
     renderGenrePicker();
     renderSetStepper();
     document.getElementById("addModal").hidden = false;
@@ -963,15 +1002,6 @@
     });
   });
 
-  document.getElementById("btnModalAddAmount").addEventListener("click", function () {
-    var costInput = document.getElementById("inCost");
-    var addInput = document.getElementById("inAddAmount");
-    var amount = Number(addInput.value) || 0;
-    if (amount === 0) return;
-    costInput.value = (Number(costInput.value) || 0) + amount;
-    addInput.value = "";
-  });
-
   document.getElementById("fabAdd").addEventListener("click", openModal);
   document.getElementById("btnCloseModal").addEventListener("click", closeModal);
   document.getElementById("addModal").addEventListener("click", function (e) {
@@ -984,7 +1014,6 @@
     var labelsRaw = document.getElementById("inLabels").value.trim();
     var reason = document.getElementById("inReason").value.trim();
     var deadline = document.getElementById("inDeadline").value;
-    var initialCost = Number(document.getElementById("inCost").value) || 0;
 
     if (!name) { alert("作品名を入力してください。"); return; }
     if (!totalInput || totalInput < 1) { alert("既刊数を入力してください。"); return; }
@@ -997,7 +1026,7 @@
 
     var sets = [];
     for (var i = 1; i <= modalSetCount; i++) {
-      sets.push({ id: uid(), label: i + "セット目", owned: new Array(total).fill(false), sold: false, soldAmount: 0, salePrice: 0, shippingFee: 0, commissionFee: 0 });
+      sets.push(makeSet(i + "セット目", total));
     }
 
     state.titles.unshift({
@@ -1007,7 +1036,6 @@
       volumeLabels: volumeLabels,
       total: total,
       sets: sets,
-      cost: initialCost,
       deadline: deadline,
       reason: reason,
       flags: { star: false, warn: false, timer: false }
