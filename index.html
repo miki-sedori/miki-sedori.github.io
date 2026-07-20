@@ -155,6 +155,16 @@
   .titles { display: flex; flex-direction: column; gap: 12px; }
   .title-card { background: var(--card); border: 1px solid var(--card-border); border-radius: 16px; padding: 14px; box-shadow: var(--shadow); }
   .title-card .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; cursor: pointer; }
+  .photo-thumb-small {
+    width: 44px; height: 44px; border-radius: 10px; object-fit: cover; flex: 0 0 auto;
+    border: 1px solid var(--card-border); background: var(--bg-soft);
+  }
+  .photo-editor { margin-bottom: 8px; }
+  .photo-thumb-large {
+    width: 100%; max-height: 220px; object-fit: cover; border-radius: 12px;
+    border: 1px solid var(--card-border); display: block; margin-bottom: 6px;
+  }
+  .photo-btn-row { display: flex; align-items: center; gap: 10px; }
   .title-card .head .name-block { min-width: 0; }
   .title-card .head h3 { font-size: 16px; overflow-wrap: anywhere; }
   .title-card .head h3 .complete-badge {
@@ -492,11 +502,11 @@
         <input type="number" id="inTotal" min="1" max="200" placeholder="12" />
       </div>
     </div>
-    <div class="hint" style="margin-bottom:10px;">数字（1〜）で管理する場合はこちらだけでOK</div>
+    <div class="hint" style="margin-bottom:10px;">数字（1〜）だけで管理する場合はこちらだけでOK</div>
 
-    <label class="field-label" for="inLabels">巻の名前（自由項目で管理したい時）</label>
-    <input type="text" id="inLabels" placeholder="例：上,下 / Ⅰ,Ⅱ,Ⅲ　※カンマ区切り" />
-    <div class="hint">こちらを入れると既刊数は不要です。あとから1件ずつ追加・削除もできます</div>
+    <label class="field-label" for="inLabels">巻の名前（数字じゃない巻がある時・「,」「・」区切り）</label>
+    <input type="text" id="inLabels" placeholder="例：上,下 / 綿・鬼・暇" />
+    <div class="hint">既刊数の後ろに追加されます。名前だけで管理する場合は既刊数を空欄にしてOK。あとから1件ずつ追加・削除もできます</div>
 
     <label class="field-label" style="margin-top:14px;">作るセット数</label>
     <div class="stepper">
@@ -521,6 +531,14 @@
 
     <div class="hint" style="margin-bottom:8px;">仕入れ値はセットごとに、作成後の画面から入力できます。</div>
 
+    <label class="field-label">写真（任意・1枚）</label>
+    <input type="file" id="inPhoto" accept="image/*" hidden />
+    <button type="button" class="btn btn-ghost" id="btnPickPhoto" style="width:100%;">📷 写真を選ぶ</button>
+    <div id="photoPreviewWrap" style="margin-top:8px; display:none;">
+      <img id="photoPreview" alt="選択した写真のプレビュー" style="width:100%; border-radius:12px; display:block;" />
+      <button type="button" class="btn-quiet" id="btnRemovePhoto">写真を削除</button>
+    </div>
+
     <button class="btn btn-primary" id="btnAdd" style="margin-top:14px;">この作品を追加する</button>
   </div>
 </div>
@@ -536,6 +554,7 @@
   var state = load();
   var modalSelectedGenre = "";
   var modalSetCount = 1;
+  var modalPhotoData = null;
   var openDetailId = null;
   var searchQuery = "";
 
@@ -551,7 +570,26 @@
     };
   }
 
+  function compressImage(file, maxDim, quality, callback) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var img = new Image();
+      img.onload = function () {
+        var w = img.width, h = img.height;
+        if (w >= h && w > maxDim) { h = Math.round(h * maxDim / w); w = maxDim; }
+        else if (h > maxDim) { w = Math.round(w * maxDim / h); h = maxDim; }
+        var canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        callback(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
   function migrateTitle(t) {
+    if (t.photo === undefined) t.photo = null;
     if (!t.sets) {
       t.sets = [{ id: uid(), label: "1セット目", owned: t.owned || new Array(t.total || 0).fill(false) }];
       delete t.owned;
@@ -715,6 +753,14 @@
 
     var head = document.createElement("div");
     head.className = "head";
+
+    if (t.photo) {
+      var thumb = document.createElement("img");
+      thumb.src = t.photo;
+      thumb.alt = "";
+      thumb.className = "photo-thumb-small";
+      head.appendChild(thumb);
+    }
 
     var nameBlock = document.createElement("div");
     nameBlock.className = "name-block";
@@ -996,6 +1042,58 @@
     return wrap;
   }
 
+  function renderPhotoEditor(t) {
+    var wrap = document.createElement("div");
+    wrap.className = "photo-editor";
+
+    var label = document.createElement("label");
+    label.className = "field-label";
+    label.textContent = "写真（任意・1枚）";
+    wrap.appendChild(label);
+
+    var fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/*";
+    fileInput.hidden = true;
+    fileInput.addEventListener("change", function (e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      compressImage(file, 480, 0.7, function (dataUrl) {
+        t.photo = dataUrl;
+        render();
+      });
+    });
+
+    if (t.photo) {
+      var img = document.createElement("img");
+      img.src = t.photo;
+      img.alt = t.name + "の写真";
+      img.className = "photo-thumb-large";
+      wrap.appendChild(img);
+
+      var btnRow = document.createElement("div");
+      btnRow.className = "photo-btn-row";
+      var changeBtn = document.createElement("button");
+      changeBtn.type = "button"; changeBtn.className = "btn btn-ghost"; changeBtn.textContent = "変更";
+      changeBtn.addEventListener("click", function () { fileInput.click(); });
+      var delBtn = document.createElement("button");
+      delBtn.type = "button"; delBtn.className = "btn-quiet"; delBtn.textContent = "写真を削除";
+      delBtn.addEventListener("click", function () { t.photo = null; render(); });
+      btnRow.appendChild(changeBtn);
+      btnRow.appendChild(delBtn);
+      wrap.appendChild(btnRow);
+    } else {
+      var pickBtn = document.createElement("button");
+      pickBtn.type = "button"; pickBtn.className = "btn btn-ghost"; pickBtn.style.width = "100%";
+      pickBtn.textContent = "📷 写真を選ぶ";
+      pickBtn.addEventListener("click", function () { fileInput.click(); });
+      wrap.appendChild(pickBtn);
+    }
+
+    wrap.appendChild(fileInput);
+    return wrap;
+  }
+
   function renderDetail(t) {
     var wrap = document.createElement("div");
     wrap.className = "detail-fields";
@@ -1003,12 +1101,18 @@
       '<label class="field-label">購入理由・メモ</label>' +
       '<input type="text" class="in-reason" placeholder="例：新刊発売にあわせて再読用" value="' + escapeAttr(t.reason || "") + '" style="margin-bottom:8px;" />' +
       '<label class="field-label">締切日</label>' +
-      '<input type="date" class="in-deadline" value="' + escapeAttr(t.deadline || "") + '" style="margin-bottom:8px;" />' +
-      '<label class="field-label">巻の管理（追加・削除・名前の修正）</label>';
+      '<input type="date" class="in-deadline" value="' + escapeAttr(t.deadline || "") + '" style="margin-bottom:8px;" />';
 
     wrap.querySelector(".in-reason").addEventListener("input", function (e) { t.reason = e.target.value; save(); });
     wrap.querySelector(".in-deadline").addEventListener("change", function (e) { t.deadline = e.target.value; render(); });
 
+    wrap.appendChild(renderPhotoEditor(t));
+
+    var volLabel = document.createElement("label");
+    volLabel.className = "field-label";
+    volLabel.style.marginTop = "8px";
+    volLabel.textContent = "巻の管理（追加・削除・名前の修正）";
+    wrap.appendChild(volLabel);
     wrap.appendChild(renderVolEditor(t));
 
     var actions = document.createElement("div");
@@ -1030,12 +1134,15 @@
   function openModal() {
     modalSelectedGenre = "";
     modalSetCount = 1;
+    modalPhotoData = null;
     document.getElementById("inName").value = "";
     document.getElementById("inTotal").value = "";
     document.getElementById("inLabels").value = "";
     document.getElementById("inNewGenre").value = "";
     document.getElementById("inReason").value = "";
     document.getElementById("inDeadline").value = "";
+    document.getElementById("inPhoto").value = "";
+    document.getElementById("photoPreviewWrap").style.display = "none";
     renderGenrePicker();
     renderSetStepper();
     document.getElementById("addModal").hidden = false;
@@ -1105,6 +1212,24 @@
     renderSetStepper();
   });
 
+  document.getElementById("btnPickPhoto").addEventListener("click", function () {
+    document.getElementById("inPhoto").click();
+  });
+  document.getElementById("inPhoto").addEventListener("change", function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    compressImage(file, 480, 0.7, function (dataUrl) {
+      modalPhotoData = dataUrl;
+      document.getElementById("photoPreview").src = dataUrl;
+      document.getElementById("photoPreviewWrap").style.display = "block";
+    });
+  });
+  document.getElementById("btnRemovePhoto").addEventListener("click", function () {
+    modalPhotoData = null;
+    document.getElementById("inPhoto").value = "";
+    document.getElementById("photoPreviewWrap").style.display = "none";
+  });
+
   [["filterStar", "star"], ["filterWarn", "warn"], ["filterTimer", "timer"]].forEach(function (pair) {
     document.getElementById(pair[0]).addEventListener("click", function () {
       state.activeFlag = state.activeFlag === pair[1] ? null : pair[1];
@@ -1132,14 +1257,16 @@
 
     if (!name) { alert("作品名を入力してください。"); return; }
 
-    var volumes;
-    if (labelsRaw) {
-      volumes = labelsRaw.split(/[,、・]/).map(function (s) { return s.trim(); }).filter(Boolean).slice(0, 200);
-    } else if (totalInput && totalInput >= 1) {
+    var volumes = [];
+    if (totalInput && totalInput >= 1) {
       var total = Math.min(totalInput, 200);
-      volumes = [];
       for (var vi = 1; vi <= total; vi++) volumes.push(String(vi));
-    } else {
+    }
+    if (labelsRaw) {
+      var extra = labelsRaw.split(/[,、・]/).map(function (s) { return s.trim(); }).filter(Boolean);
+      volumes = volumes.concat(extra).slice(0, 200);
+    }
+    if (volumes.length === 0) {
       alert("既刊数か、巻の名前のどちらかを入力してください。");
       return;
     }
@@ -1158,6 +1285,7 @@
       sets: sets,
       deadline: deadline,
       reason: reason,
+      photo: modalPhotoData,
       flags: { star: false, warn: false, timer: false }
     });
 
