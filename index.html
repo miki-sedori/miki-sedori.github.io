@@ -136,6 +136,11 @@
   .stat-tile.profit .value { color: var(--owned); }
   .stat-tile.profit .value.negative { color: var(--missing); }
 
+  .search-input {
+    width: 100%; margin-top: 10px; background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 12px; padding: 9px 12px; color: var(--ink); font-size: 14px; font-family: inherit;
+  }
+
   .filters { display: flex; gap: 6px; overflow-x: auto; padding: 12px 0 2px; scrollbar-width: none; }
   .filters::-webkit-scrollbar { display: none; }
   .chip {
@@ -245,8 +250,12 @@
   }
   .add-set-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-  .detail { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--card-border); display: none; }
-  .detail.open { display: block; }
+  .detail-fields { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--card-border); }
+
+  .card-body { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--card-border); }
+  .card-body.open { display: block; }
+  .progress-wrap { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+  .card-caret { font-size: 11px; color: var(--ink-soft); }
   .field-row { display: flex; gap: 8px; margin-bottom: 8px; }
   .field-row > * { flex: 1; min-width: 0; }
   .field-row .narrow { flex: 0 0 100px; }
@@ -377,6 +386,7 @@
         <div class="value nums" id="statProfit">¥0</div>
       </div>
     </div>
+    <input type="text" id="searchQuery" class="search-input" placeholder="🔍 作品名で検索" />
     <div class="flag-filters" id="flagFilters" role="tablist" aria-label="タグで絞り込み">
       <button type="button" class="flag-btn star" id="filterStar" aria-pressed="false" aria-label="お気に入りで絞り込み">⭐</button>
       <button type="button" class="flag-btn warn" id="filterWarn" aria-pressed="false" aria-label="注意で絞り込み">⚠️</button>
@@ -527,6 +537,7 @@
   var modalSelectedGenre = "";
   var modalSetCount = 1;
   var openDetailId = null;
+  var searchQuery = "";
 
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -687,10 +698,12 @@
     var list = document.getElementById("titleList");
     var empty = document.getElementById("emptyState");
     list.innerHTML = "";
+    var q = searchQuery.trim().toLowerCase();
     var items = state.titles.filter(function (t) {
       var genreOk = state.activeGenre === "all" || t.genre === state.activeGenre;
       var flagOk = !state.activeFlag || t.flags[state.activeFlag];
-      return genreOk && flagOk;
+      var searchOk = !q || t.name.toLowerCase().indexOf(q) !== -1;
+      return genreOk && flagOk && searchOk;
     });
     empty.hidden = state.titles.length > 0;
     items.forEach(function (t) { list.appendChild(renderTitleCard(t)); });
@@ -751,12 +764,22 @@
     nameBlock.appendChild(meta);
     head.appendChild(nameBlock);
 
+    var progWrap = document.createElement("div");
+    progWrap.className = "progress-wrap";
     var prog = document.createElement("div");
     prog.className = "progress-mini nums";
     prog.innerHTML = '<span class="frac-owned">' + titleOwnedTotal(t) + "</span>" + '<span class="frac-total">/' + titleSlotsTotal(t) + "</span>";
-    head.appendChild(prog);
+    progWrap.appendChild(prog);
+    var caret = document.createElement("span");
+    caret.className = "card-caret";
+    caret.textContent = openDetailId === t.id ? "▾" : "▸";
+    progWrap.appendChild(caret);
+    head.appendChild(progWrap);
 
     card.appendChild(head);
+
+    var bodyWrap = document.createElement("div");
+    bodyWrap.className = "card-body" + (openDetailId === t.id ? " open" : "");
 
     t.sets.forEach(function (s, sIdx) {
       var block = document.createElement("div");
@@ -860,7 +883,7 @@
         }
       }
 
-      card.appendChild(block);
+      bodyWrap.appendChild(block);
     });
 
     var addSetBtn = document.createElement("button");
@@ -871,17 +894,18 @@
       t.sets.push(makeSet((t.sets.length + 1) + "セット目", t.total));
       render();
     });
-    card.appendChild(addSetBtn);
+    bodyWrap.appendChild(addSetBtn);
+
+    bodyWrap.appendChild(renderDetail(t));
+    card.appendChild(bodyWrap);
 
     head.addEventListener("click", function (e) {
       if (e.target.closest(".vol-chip") || e.target.closest(".flag-btn")) return;
-      var isOpen = card.querySelector(".detail").classList.toggle("open");
+      var isOpen = bodyWrap.classList.toggle("open");
       openDetailId = isOpen ? t.id : null;
+      caret.textContent = isOpen ? "▾" : "▸";
     });
 
-    var detailEl = renderDetail(t);
-    if (openDetailId === t.id) detailEl.classList.add("open");
-    card.appendChild(detailEl);
     return card;
   }
 
@@ -974,7 +998,7 @@
 
   function renderDetail(t) {
     var wrap = document.createElement("div");
-    wrap.className = "detail";
+    wrap.className = "detail-fields";
     wrap.innerHTML =
       '<label class="field-label">購入理由・メモ</label>' +
       '<input type="text" class="in-reason" placeholder="例：新刊発売にあわせて再読用" value="' + escapeAttr(t.reason || "") + '" style="margin-bottom:8px;" />' +
@@ -1086,6 +1110,11 @@
       state.activeFlag = state.activeFlag === pair[1] ? null : pair[1];
       render();
     });
+  });
+
+  document.getElementById("searchQuery").addEventListener("input", function (e) {
+    searchQuery = e.target.value;
+    renderTitles();
   });
 
   document.getElementById("fabAdd").addEventListener("click", openModal);
