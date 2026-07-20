@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIyIiBmaWxsPSIjMmI1ZjVhIi8+PHRleHQgeD0iNTAiIHk9IjY2IiBmb250LXNpemU9IjU2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7wn5OaPC90ZXh0Pjwvc3ZnPgo=">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIyIiBmaWxsPSIjMmI1ZjVhIi8+PHRleHQgeD0iNTAiIHk9IjY2IiBmb250LXNpemU9IjU2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7wn5OaPC90ZXh0Pjwvc3ZnPgo=">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="揃える本">
 <title>揃える本</title>
 <style>
   :root {
@@ -666,7 +670,7 @@
   }
 
   function setOwnedCount(s) { return s.owned.filter(Boolean).length; }
-  function setComplete(t, s) { return t.total > 0 && setOwnedCount(s) >= t.total; }
+  function setComplete(t, s) { return s.sold || (t.total > 0 && setOwnedCount(s) >= t.total); }
   function titleOwnedTotal(t) { return t.sets.reduce(function (sum, s) { return sum + setOwnedCount(s); }, 0); }
   function titleSlotsTotal(t) { return t.total * t.sets.length; }
   function isComplete(t) { return t.sets.length > 0 && t.sets.every(function (s) { return setComplete(t, s); }); }
