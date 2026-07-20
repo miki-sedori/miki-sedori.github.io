@@ -197,6 +197,20 @@
   }
   .set-cost-panel .field-row:last-of-type { margin-bottom: 0; }
 
+  .vol-editor { margin-top: 6px; margin-bottom: 10px; }
+  .vol-editor-list {
+    max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+    margin-bottom: 8px; padding-right: 2px;
+  }
+  .vol-editor-row { display: flex; gap: 6px; align-items: center; }
+  .vol-editor-input { flex: 1; min-width: 0; }
+  .vol-editor-del {
+    flex: 0 0 auto; width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--card-border);
+    background: var(--bg-soft); color: var(--ink-soft); font-size: 15px; cursor: pointer;
+  }
+  .vol-editor-del:hover:not(:disabled) { color: var(--missing); border-color: var(--missing); }
+  .vol-editor-del:disabled { opacity: 0.35; cursor: not-allowed; }
+
   .set-block.sold { opacity: 0.5; }
   .sold-row {
     display: flex; align-items: center; gap: 6px; margin-top: 6px;
@@ -468,10 +482,11 @@
         <input type="number" id="inTotal" min="1" max="200" placeholder="12" />
       </div>
     </div>
+    <div class="hint" style="margin-bottom:10px;">数字（1〜）で管理する場合はこちらだけでOK</div>
 
-    <label class="field-label" for="inLabels">巻の名前（数字じゃない時だけ）</label>
-    <input type="text" id="inLabels" placeholder="例：上,下　※カンマ区切り" />
-    <div class="hint">既刊数は必須。名前を入れた分だけ、先頭の巻から順に数字の代わりに使われます</div>
+    <label class="field-label" for="inLabels">巻の名前（自由項目で管理したい時）</label>
+    <input type="text" id="inLabels" placeholder="例：上,下 / Ⅰ,Ⅱ,Ⅲ　※カンマ区切り" />
+    <div class="hint">こちらを入れると既刊数は不要です。あとから1件ずつ追加・削除もできます</div>
 
     <label class="field-label" style="margin-top:14px;">作るセット数</label>
     <div class="stepper">
@@ -530,7 +545,14 @@
       t.sets = [{ id: uid(), label: "1セット目", owned: t.owned || new Array(t.total || 0).fill(false) }];
       delete t.owned;
     }
-    if (t.volumeLabels === undefined) t.volumeLabels = null;
+    if (!t.volumes) {
+      t.volumes = [];
+      for (var vi = 0; vi < (t.total || 0); vi++) {
+        t.volumes.push((t.volumeLabels && t.volumeLabels[vi]) ? t.volumeLabels[vi] : String(vi + 1));
+      }
+      delete t.volumeLabels;
+    }
+    t.total = t.volumes.length;
     if (t.deadline === undefined) t.deadline = "";
     if (t.reason === undefined) t.reason = "";
     if (!t.flags) t.flags = { star: false, warn: false, timer: false };
@@ -590,7 +612,7 @@
   }
 
   function labelFor(t, idx) {
-    if (t.volumeLabels && t.volumeLabels[idx]) return t.volumeLabels[idx];
+    if (t.volumes && t.volumes[idx]) return t.volumes[idx];
     return String(idx + 1);
   }
 
@@ -894,6 +916,62 @@
     return wrap;
   }
 
+  function renderVolEditor(t) {
+    var wrap = document.createElement("div");
+    wrap.className = "vol-editor";
+
+    var listDiv = document.createElement("div");
+    listDiv.className = "vol-editor-list";
+    t.volumes.forEach(function (label, idx) {
+      var row = document.createElement("div");
+      row.className = "vol-editor-row";
+
+      var input = document.createElement("input");
+      input.type = "text";
+      input.className = "vol-editor-input";
+      input.value = label;
+      input.addEventListener("change", function (e) {
+        var v = e.target.value.trim();
+        t.volumes[idx] = v || String(idx + 1);
+        save();
+      });
+      row.appendChild(input);
+
+      var delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "vol-editor-del";
+      delBtn.textContent = "×";
+      delBtn.disabled = t.volumes.length <= 1;
+      delBtn.setAttribute("aria-label", label + "を削除");
+      delBtn.addEventListener("click", function () {
+        if (t.volumes.length <= 1) return;
+        if (!confirm("「" + label + "」を削除しますか？各セットの保有状況もこの巻の分は削除されます。")) return;
+        t.volumes.splice(idx, 1);
+        t.sets.forEach(function (s) { s.owned.splice(idx, 1); });
+        t.total = t.volumes.length;
+        render();
+      });
+      row.appendChild(delBtn);
+
+      listDiv.appendChild(row);
+    });
+    wrap.appendChild(listDiv);
+
+    var addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "add-set-btn";
+    addBtn.textContent = "＋ 巻を追加";
+    addBtn.addEventListener("click", function () {
+      t.volumes.push(String(t.volumes.length + 1));
+      t.sets.forEach(function (s) { s.owned.push(false); });
+      t.total = t.volumes.length;
+      render();
+    });
+    wrap.appendChild(addBtn);
+
+    return wrap;
+  }
+
   function renderDetail(t) {
     var wrap = document.createElement("div");
     wrap.className = "detail";
@@ -902,16 +980,24 @@
       '<input type="text" class="in-reason" placeholder="例：新刊発売にあわせて再読用" value="' + escapeAttr(t.reason || "") + '" style="margin-bottom:8px;" />' +
       '<label class="field-label">締切日</label>' +
       '<input type="date" class="in-deadline" value="' + escapeAttr(t.deadline || "") + '" style="margin-bottom:8px;" />' +
-      '<div class="detail-actions"><button type="button" class="btn-quiet danger-del">この作品を削除</button></div>';
+      '<label class="field-label">巻の管理（追加・削除・名前の修正）</label>';
 
     wrap.querySelector(".in-reason").addEventListener("input", function (e) { t.reason = e.target.value; save(); });
     wrap.querySelector(".in-deadline").addEventListener("change", function (e) { t.deadline = e.target.value; render(); });
-    wrap.querySelector(".danger-del").addEventListener("click", function () {
+
+    wrap.appendChild(renderVolEditor(t));
+
+    var actions = document.createElement("div");
+    actions.className = "detail-actions";
+    actions.innerHTML = '<button type="button" class="btn-quiet danger-del">この作品を削除</button>';
+    actions.querySelector(".danger-del").addEventListener("click", function () {
       if (confirm(t.name + " を削除しますか？この操作は取り消せません。")) {
         state.titles = state.titles.filter(function (x) { return x.id !== t.id; });
         render();
       }
     });
+    wrap.appendChild(actions);
+
     return wrap;
   }
 
@@ -1016,25 +1102,30 @@
     var deadline = document.getElementById("inDeadline").value;
 
     if (!name) { alert("作品名を入力してください。"); return; }
-    if (!totalInput || totalInput < 1) { alert("既刊数を入力してください。"); return; }
-    var total = Math.min(totalInput, 200);
 
-    var volumeLabels = null;
+    var volumes;
     if (labelsRaw) {
-      volumeLabels = labelsRaw.split(/[,、・]/).map(function (s) { return s.trim(); }).filter(Boolean).slice(0, total);
+      volumes = labelsRaw.split(/[,、・]/).map(function (s) { return s.trim(); }).filter(Boolean).slice(0, 200);
+    } else if (totalInput && totalInput >= 1) {
+      var total = Math.min(totalInput, 200);
+      volumes = [];
+      for (var vi = 1; vi <= total; vi++) volumes.push(String(vi));
+    } else {
+      alert("既刊数か、巻の名前のどちらかを入力してください。");
+      return;
     }
 
     var sets = [];
     for (var i = 1; i <= modalSetCount; i++) {
-      sets.push(makeSet(i + "セット目", total));
+      sets.push(makeSet(i + "セット目", volumes.length));
     }
 
     state.titles.unshift({
       id: uid(),
       name: name,
       genre: modalSelectedGenre,
-      volumeLabels: volumeLabels,
-      total: total,
+      volumes: volumes,
+      total: volumes.length,
       sets: sets,
       deadline: deadline,
       reason: reason,
