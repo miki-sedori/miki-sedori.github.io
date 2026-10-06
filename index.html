@@ -372,6 +372,10 @@
   .scan-status { font-size: 13px; color: var(--ink); margin-top: 8px; white-space: pre-line; }
   .scan-status:empty { display: none; }
   .scan-status.error { color: var(--missing); }
+  .cam-panel { margin-top: 10px; }
+  .cam-panel[hidden] { display: none; }
+  #qrReader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; }
+  .cam-info { font-size: 14px; font-weight: 700; margin: 8px 0; white-space: pre-line; }
 
   .backup-textarea {
     width: 100%; height: 38vh; padding: 10px; border-radius: 12px;
@@ -504,12 +508,21 @@
       <div class="field-label" style="margin-bottom:6px;">写真から入力</div>
       <div class="scan-row">
         <button type="button" class="btn btn-ghost" id="btnScanSpine">📷 背表紙（AI）</button>
-        <button type="button" class="btn btn-ghost" id="btnScanBarcode">▥ 裏のバーコード</button>
+        <button type="button" class="btn btn-ghost" id="btnScanBarcode">▥ バーコード</button>
       </div>
       <input type="file" id="inScanSpine" accept="image/*" hidden />
       <input type="file" id="inScanBarcode" accept="image/*" multiple hidden />
-      <div class="hint">背表紙：並べて1枚撮ればまとめて読みます。バーコード：1冊ずつ、何枚でも選べます（978で始まる方を写す）</div>
+      <div class="hint">背表紙：並べて1枚撮ればまとめて読みます。バーコード：裏の978で始まる方に1冊ずつカメラを向けると、続けて読み取ります</div>
+      <div class="cam-panel" id="camPanel" hidden>
+        <div id="qrReader"></div>
+        <div class="cam-info" id="camInfo"></div>
+        <div class="scan-row">
+          <button type="button" class="btn btn-primary" id="btnCamDone">読み取り完了</button>
+          <button type="button" class="btn btn-ghost" id="btnCamCancel">やめる</button>
+        </div>
+      </div>
       <div class="scan-status" id="scanStatus"></div>
+      <button type="button" class="btn-quiet" id="btnBarcodeFiles">撮った写真からバーコードを読む</button>
       <button type="button" class="btn-quiet" id="btnApiKey">AIのAPIキー設定</button>
       <div id="qrScanTmp" hidden></div>
     </div>
@@ -1181,6 +1194,7 @@
   }
 
   function closeModal() {
+    stopBarcodeCam();
     document.getElementById("addModal").hidden = true;
   }
 
@@ -1483,11 +1497,11 @@
     return { name: name, volume: vol || 0 };
   }
 
-  function scanBarcodes(files) {
+  function scanBarcodes(files, preset) {
     setScanStatus("バーコードを読み取り中…");
     loadQrLib(function () {
-      var reader = new Html5Qrcode("qrScanTmp", { formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13], verbose: false });
-      var isbns = [], failed = 0;
+      var reader = preset ? null : new Html5Qrcode("qrScanTmp", { formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13], verbose: false });
+      var isbns = preset ? preset.slice() : [], failed = 0;
       var i = 0;
       function next() {
         if (i >= files.length) { lookup(); return; }
@@ -1521,7 +1535,7 @@
           setScanStatus("本の情報を調べられませんでした。電波を確認してもう一度試してください。", true);
         });
       }
-      next();
+      if (preset) lookup(); else next();
     });
   }
 
@@ -1533,7 +1547,68 @@
     e.target.value = "";
     if (file) scanSpines(file);
   });
-  document.getElementById("btnScanBarcode").addEventListener("click", function () {
+  // --- バーコードをカメラで続けて読む（ページの外に出ないので画面が閉じない） ---
+
+  var liveReader = null, liveCodes = [], liveLastCode = "", liveLastTime = 0;
+
+  function showCamInfo() {
+    var el = document.getElementById("camInfo");
+    el.textContent = liveCodes.length
+      ? liveCodes.length + "冊 読み取りました。次の本へどうぞ"
+      : "本の裏のバーコード（978で始まる方）を枠に入れてください";
+  }
+
+  function startBarcodeCam() {
+    if (liveReader) return;
+    liveCodes = []; liveLastCode = ""; liveLastTime = 0;
+    setScanStatus("カメラを準備中…");
+    loadQrLib(function () {
+      document.getElementById("camPanel").hidden = false;
+      showCamInfo();
+      liveReader = new Html5Qrcode("qrReader", { formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13], verbose: false });
+      liveReader.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 260, height: 110 } },
+        function (code) {
+          if (!/^97[89]/.test(code)) return;
+          var now = Date.now();
+          // 同じ本をかざし続けている間は1冊として数える（離して3秒たてば同じ巻のダブりも数える）
+          if (code === liveLastCode && now - liveLastTime < 3000) { liveLastTime = now; return; }
+          liveLastCode = code; liveLastTime = now;
+          liveCodes.push(code);
+          if (navigator.vibrate) navigator.vibrate(80);
+          showCamInfo();
+        },
+        function () {}
+      ).then(function () {
+        setScanStatus("");
+      }).catch(function () {
+        stopBarcodeCam();
+        setScanStatus("カメラを起動できませんでした。ブラウザのカメラの許可を確認してください。", true);
+      });
+    });
+  }
+
+  function stopBarcodeCam() {
+    document.getElementById("camPanel").hidden = true;
+    if (!liveReader) return;
+    var r = liveReader;
+    liveReader = null;
+    r.stop().then(function () { r.clear(); }).catch(function () {});
+  }
+
+  document.getElementById("btnScanBarcode").addEventListener("click", startBarcodeCam);
+  document.getElementById("btnCamDone").addEventListener("click", function () {
+    var codes = liveCodes.slice();
+    stopBarcodeCam();
+    if (codes.length) scanBarcodes([], codes); else setScanStatus("まだ1冊も読み取れていません。", true);
+  });
+  document.getElementById("btnCamCancel").addEventListener("click", function () {
+    stopBarcodeCam();
+    setScanStatus("");
+  });
+  document.getElementById("btnBarcodeFiles").addEventListener("click", function () {
+    stopBarcodeCam();
     document.getElementById("inScanBarcode").click();
   });
   document.getElementById("inScanBarcode").addEventListener("change", function (e) {
