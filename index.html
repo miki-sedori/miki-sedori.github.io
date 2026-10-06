@@ -363,6 +363,16 @@
 
   .hint { font-size: 11px; color: var(--ink-soft); margin-top: 3px; }
 
+  .scan-box {
+    background: var(--card); border: 1px solid var(--card-border); border-radius: 14px;
+    padding: 12px; margin-bottom: 14px;
+  }
+  .scan-row { display: flex; gap: 8px; }
+  .scan-row .btn { flex: 1; }
+  .scan-status { font-size: 13px; color: var(--ink); margin-top: 8px; white-space: pre-line; }
+  .scan-status:empty { display: none; }
+  .scan-status.error { color: var(--missing); }
+
   .backup-textarea {
     width: 100%; height: 38vh; padding: 10px; border-radius: 12px;
     border: 1px solid var(--card-border); background: var(--bg-soft); color: var(--ink);
@@ -490,6 +500,20 @@
       <button class="sheet-close" id="btnCloseModal" aria-label="閉じる" type="button">×</button>
     </div>
 
+    <div class="scan-box">
+      <div class="field-label" style="margin-bottom:6px;">写真から入力</div>
+      <div class="scan-row">
+        <button type="button" class="btn btn-ghost" id="btnScanSpine">📷 背表紙（AI）</button>
+        <button type="button" class="btn btn-ghost" id="btnScanBarcode">▥ 裏のバーコード</button>
+      </div>
+      <input type="file" id="inScanSpine" accept="image/*" hidden />
+      <input type="file" id="inScanBarcode" accept="image/*" multiple hidden />
+      <div class="hint">背表紙：並べて1枚撮ればまとめて読みます。バーコード：1冊ずつ、何枚でも選べます（978で始まる方を写す）</div>
+      <div class="scan-status" id="scanStatus"></div>
+      <button type="button" class="btn-quiet" id="btnApiKey">AIのAPIキー設定</button>
+      <div id="qrScanTmp" hidden></div>
+    </div>
+
     <label class="field-label" for="inName">作品名</label>
     <input type="text" id="inName" placeholder="例：〇〇〇〇" style="margin-bottom:12px;" />
 
@@ -559,6 +583,7 @@
   var modalSelectedGenre = "";
   var modalSetCount = 1;
   var modalPhotoData = null;
+  var modalScanOwned = [];
   var openDetailId = null;
   var searchQuery = "";
 
@@ -1139,6 +1164,8 @@
     modalSelectedGenre = "";
     modalSetCount = 1;
     modalPhotoData = null;
+    modalScanOwned = [];
+    setScanStatus("");
     document.getElementById("inName").value = "";
     document.getElementById("inTotal").value = "";
     document.getElementById("inLabels").value = "";
@@ -1279,6 +1306,11 @@
     for (var i = 1; i <= modalSetCount; i++) {
       sets.push(makeSet(i + "セット目", volumes.length));
     }
+    // 写真で読み取った巻は1セット目にチェックを入れておく
+    modalScanOwned.forEach(function (n) {
+      var idx = volumes.indexOf(String(n));
+      if (idx !== -1) sets[0].owned[idx] = true;
+    });
 
     state.titles.unshift({
       id: uid(),
@@ -1295,6 +1327,223 @@
 
     closeModal();
     render();
+  });
+
+  /* ---------- scan from photo ---------- */
+
+  var API_KEY_STORE = "soroeru-claude-api-key";
+  var QR_LIB_URL = "https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js";
+
+  function setScanStatus(text, isError) {
+    var el = document.getElementById("scanStatus");
+    el.textContent = text;
+    el.classList.toggle("error", !!isError);
+  }
+
+  function getApiKey() {
+    try { return localStorage.getItem(API_KEY_STORE) || ""; } catch (e) { return ""; }
+  }
+
+  function askApiKey() {
+    var v = prompt("ClaudeのAPIキー（sk-ant-で始まる文字）を貼り付けてください。\nこの端末の中だけに保存されます。空欄でOKを押すと削除します。", getApiKey());
+    if (v === null) return getApiKey();
+    v = v.trim();
+    try {
+      if (v) localStorage.setItem(API_KEY_STORE, v); else localStorage.removeItem(API_KEY_STORE);
+    } catch (e) {}
+    return v;
+  }
+
+  // 読み取り結果をフォームに反映する。volumes は数字の配列（ダブりあり）
+  function applyScanResult(name, volumes, extraNote) {
+    var nums = volumes.filter(function (n) { return n >= 1 && n <= 200; });
+    var uniq = nums.filter(function (n, i) { return nums.indexOf(n) === i; }).sort(function (a, b) { return a - b; });
+    if (name) document.getElementById("inName").value = name;
+    modalScanOwned = uniq;
+    var lines = [];
+    if (uniq.length) {
+      var max = uniq[uniq.length - 1];
+      var current = Number(document.getElementById("inTotal").value) || 0;
+      if (max > current) document.getElementById("inTotal").value = max;
+      var sorted = nums.slice().sort(function (a, b) { return a - b; });
+      lines.push("読み取り：" + (name || "（作品名なし）") + " " + sorted.join("・") + "巻");
+      var missing = [];
+      for (var i = 1; i < max; i++) if (uniq.indexOf(i) === -1) missing.push(i);
+      if (missing.length) lines.push("抜け：" + missing.join("・") + "巻");
+      var dupes = uniq.filter(function (n) { return nums.indexOf(n) !== nums.lastIndexOf(n); });
+      if (dupes.length) lines.push("ダブり：" + dupes.join("・") + "巻");
+      lines.push("読めた巻は1セット目にチェックが入ります。既刊数は最新巻まで直してね。");
+    } else {
+      lines.push("読み取り：" + (name || "（作品名なし）") + "（巻数は読めませんでした）");
+    }
+    if (extraNote) lines.push(extraNote);
+    setScanStatus(lines.join("\n"));
+  }
+
+  // --- 背表紙（Claude API） ---
+
+  function scanSpines(file) {
+    var key = getApiKey() || askApiKey();
+    if (!key) { setScanStatus("APIキーが未設定です。", true); return; }
+    setScanStatus("読み取り中…（10秒くらいかかります）");
+    compressImage(file, 1568, 0.85, function (dataUrl) {
+      var body = {
+        model: "claude-opus-5-5",
+        max_tokens: 4000,
+        fallbacks: "default",
+        output_config: {
+          effort: "low",
+          format: {
+            type: "json_schema",
+            schema: {
+              type: "object",
+              properties: {
+                books: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      title: { type: "string" },
+                      volume: { type: "integer" }
+                    },
+                    required: ["title", "volume"],
+                    additionalProperties: false
+                  }
+                }
+              },
+              required: ["books"],
+              additionalProperties: false
+            }
+          }
+        },
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: "image/jpeg", data: dataUrl.split(",")[1] } },
+            { type: "text", text: "写真に写っている本（漫画など）の背表紙を左から順に1冊ずつ読み取ってください。title は作品名だけ（巻数・作者名・出版社名・レーベル名は含めない）、volume は背表紙の巻数の数字です。同じ巻が2冊あれば2回入れてください。巻数が読めない本は volume を0にしてください。" }
+          ]
+        }]
+      };
+      fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": key,
+          "anthropic-version": "2023-06-01",
+          "anthropic-beta": "server-side-fallback-2026-07-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify(body)
+      }).then(function (res) {
+        return res.json().then(function (json) { return { ok: res.ok, status: res.status, json: json }; });
+      }).then(function (r) {
+        if (!r.ok) {
+          if (r.status === 401) setScanStatus("APIキーが違うみたいです。「AIのAPIキー設定」から貼り直してください。", true);
+          else if (r.status === 400 && /credit/i.test(JSON.stringify(r.json))) setScanStatus("APIのクレジット残高が足りないみたいです。", true);
+          else setScanStatus("読み取りに失敗しました（" + r.status + "）。もう一度試してください。", true);
+          return;
+        }
+        if (r.json.stop_reason === "refusal") { setScanStatus("読み取れませんでした。撮り直してみてください。", true); return; }
+        var textBlock = (r.json.content || []).filter(function (b) { return b.type === "text"; })[0];
+        var books = JSON.parse(textBlock.text).books || [];
+        if (!books.length) { setScanStatus("本が見つかりませんでした。背表紙が写るように撮り直してください。", true); return; }
+        // いちばん多い作品名を採用
+        var count = {};
+        books.forEach(function (b) { count[b.title] = (count[b.title] || 0) + 1; });
+        var titles = Object.keys(count).sort(function (a, b) { return count[b] - count[a]; });
+        var main = titles[0];
+        var vols = books.filter(function (b) { return b.title === main && b.volume > 0; }).map(function (b) { return b.volume; });
+        var note = titles.length > 1 ? "※ほかの作品も写っていました：" + titles.slice(1).join("、") : "";
+        applyScanResult(main, vols, note);
+      }).catch(function () {
+        setScanStatus("通信に失敗しました。電波を確認してもう一度試してください。", true);
+      });
+    });
+  }
+
+  // --- 裏のバーコード（ISBN → openBD） ---
+
+  function loadQrLib(callback) {
+    if (window.Html5Qrcode) { callback(); return; }
+    var s = document.createElement("script");
+    s.src = QR_LIB_URL;
+    s.onload = callback;
+    s.onerror = function () { setScanStatus("バーコード読み取りの準備に失敗しました。電波を確認してください。", true); };
+    document.head.appendChild(s);
+  }
+
+  // openBD の書名から作品名と巻数を取り出す（例：「ヒストリエ 7」「〇〇 = English. 006」）
+  function parseBookTitle(summary) {
+    var raw = (summary.title || "").trim();
+    var vol = parseInt(String(summary.volume || "").replace(/[^0-9]/g, ""), 10);
+    var m = raw.match(/[\s.　]*(?:第)?([0-9０-９]+)(?:巻)?\s*$/);
+    if (!vol && m) vol = parseInt(m[1].replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }), 10);
+    var name = raw.split(" = ")[0];
+    name = name.replace(/[\s.　]*(?:第)?[0-9０-９]+(?:巻)?\s*$/, "").replace(/[\s.　]+$/, "");
+    return { name: name, volume: vol || 0 };
+  }
+
+  function scanBarcodes(files) {
+    setScanStatus("バーコードを読み取り中…");
+    loadQrLib(function () {
+      var reader = new Html5Qrcode("qrScanTmp", { formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13], verbose: false });
+      var isbns = [], failed = 0;
+      var i = 0;
+      function next() {
+        if (i >= files.length) { lookup(); return; }
+        var f = files[i++];
+        setScanStatus("バーコードを読み取り中…（" + i + "/" + files.length + "）");
+        reader.scanFile(f, false).then(function (code) {
+          if (/^97[89]/.test(code)) isbns.push(code); else failed++;
+          next();
+        }).catch(function () { failed++; next(); });
+      }
+      function lookup() {
+        var failNote = failed ? "※" + failed + "枚は読めませんでした（978で始まる方のバーコードを大きめに撮ると読みやすいです）" : "";
+        if (!isbns.length) { setScanStatus("バーコードが読めませんでした。" + failNote, true); return; }
+        setScanStatus("本の情報を調べています…");
+        fetch("https://api.openbd.jp/v1/get?isbn=" + isbns.join(",")).then(function (res) { return res.json(); }).then(function (list) {
+          var books = [], notFound = 0;
+          list.forEach(function (item) {
+            if (item && item.summary) books.push(parseBookTitle(item.summary)); else notFound++;
+          });
+          if (!books.length) { setScanStatus("本の情報が見つかりませんでした。作品名は手入力でお願いします。", true); return; }
+          var count = {};
+          books.forEach(function (b) { count[b.name] = (count[b.name] || 0) + 1; });
+          var names = Object.keys(count).sort(function (a, b) { return count[b] - count[a]; });
+          var vols = books.filter(function (b) { return b.name === names[0] && b.volume > 0; }).map(function (b) { return b.volume; });
+          var notes = [];
+          if (names.length > 1) notes.push("※ほかの作品も混ざっていました：" + names.slice(1).join("、"));
+          if (notFound) notes.push("※" + notFound + "冊は本の情報が見つかりませんでした");
+          if (failNote) notes.push(failNote);
+          applyScanResult(names[0], vols, notes.join("\n"));
+        }).catch(function () {
+          setScanStatus("本の情報を調べられませんでした。電波を確認してもう一度試してください。", true);
+        });
+      }
+      next();
+    });
+  }
+
+  document.getElementById("btnScanSpine").addEventListener("click", function () {
+    document.getElementById("inScanSpine").click();
+  });
+  document.getElementById("inScanSpine").addEventListener("change", function (e) {
+    var file = e.target.files[0];
+    e.target.value = "";
+    if (file) scanSpines(file);
+  });
+  document.getElementById("btnScanBarcode").addEventListener("click", function () {
+    document.getElementById("inScanBarcode").click();
+  });
+  document.getElementById("inScanBarcode").addEventListener("change", function (e) {
+    var files = Array.prototype.slice.call(e.target.files);
+    e.target.value = "";
+    if (files.length) scanBarcodes(files);
+  });
+  document.getElementById("btnApiKey").addEventListener("click", function () {
+    var k = askApiKey();
+    setScanStatus(k ? "APIキーを保存しました。" : "APIキーは未設定です。");
   });
 
   /* ---------- backup ---------- */
