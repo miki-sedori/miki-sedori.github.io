@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="単語帳">
+<meta name="theme-color" content="#22336b">
+<title>書いて撮る単語帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: one narrow column like a pocket notebook; tabs pinned at the bottom for one-thumb use */
+:root{
+  --bg:#f3f5f9; --paper:#ffffff; --ink:#1b2440; --sub:#5d6782; --line:#d9deea;
+  --navy:#22336b; --navy-ink:#ffffff; --rose:#d4567a; --rose-soft:#fbe7ee;
+  --ok:#2f8a5b; --ok-soft:#e3f3ea;
+  --f-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN",system-ui,sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11152a; --paper:#1a2038; --ink:#e8ebf6; --sub:#a3abc6; --line:#2e3757;
+  --navy:#8fa4ec; --navy-ink:#11152a; --rose:#f08aa7; --rose-soft:#3a2231;
+  --ok:#6fd19d; --ok-soft:#1c3a2b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11152a; --paper:#1a2038; --ink:#e8ebf6; --sub:#a3abc6; --line:#2e3757;
+  --navy:#8fa4ec; --navy-ink:#11152a; --rose:#f08aa7; --rose-soft:#3a2231;
+  --ok:#6fd19d; --ok-soft:#1c3a2b; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+[hidden]{display:none!important}
+img{max-width:100%}
+:root{padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;-webkit-text-size-adjust:100%;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6}
+.wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:16px 96px;display:flex;flex-direction:column;gap:16px}
+h1{font-family:var(--f-display);font-size:22px;margin:0;letter-spacing:.02em;text-wrap:balance}
+h2{font-family:var(--f-display);font-size:18px;margin:0}
+.lead{color:var(--sub);margin:0;font-size:13px}
+.note{background:var(--rose-soft);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:13px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--sub);flex:1;min-width:140px}
+select,input[type=text]{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+button{font:inherit;cursor:pointer;border-radius:12px;border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:10px 14px;font-weight:500}
+button.primary{background:var(--navy);color:var(--navy-ink);border-color:var(--navy);font-weight:700}
+button.rose{background:var(--rose);color:#fff;border-color:var(--rose);font-weight:700}
+button.okb{background:var(--ok);color:#fff;border-color:var(--ok);font-weight:700}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--rose);outline-offset:2px}
+.big{flex:1;padding:14px;font-size:16px}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--line);display:flex;justify-content:center;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));z-index:5}
+.tabs .in{display:flex;gap:6px;max-width:560px;width:100%}
+.tabs button{flex:1;border:none;background:transparent;color:var(--sub);font-family:var(--f-display);font-size:15px;padding:10px 4px;border-radius:10px}
+.tabs button[aria-selected="true"]{background:var(--navy);color:var(--navy-ink)}
+/* study card */
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.side{padding:14px;display:flex;flex-direction:column;gap:6px;min-height:96px}
+.side + .side{border-top:2px dashed var(--line)}
+.tag{font-size:11px;letter-spacing:.12em;color:var(--sub);font-weight:700}
+.side img{width:100%;border-radius:8px;background:#fff;display:block}
+.cover{background:var(--rose-soft);border-radius:10px;min-height:72px;display:grid;place-items:center;color:var(--rose);font-weight:700;border:none;width:100%}
+.meter{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--ok);border-radius:99px}
+.count{font-variant-numeric:tabular-nums;color:var(--sub);font-size:13px}
+/* capture */
+.stage{position:relative;width:100%;touch-action:none;border-radius:10px;overflow:hidden;background:var(--bg)}
+.stage canvas{display:block;width:100%;height:auto}
+.strips{display:flex;flex-direction:column;gap:8px}
+.strip{display:grid;grid-template-columns:28px 1fr 1fr;gap:6px;align-items:center;font-size:12px;color:var(--sub)}
+.strip img{width:100%;border-radius:4px;border:1px solid var(--line);background:#fff;display:block}
+.strip.off img{opacity:.3}
+.strip input{width:20px;height:20px}
+.folders{display:flex;flex-direction:column;gap:12px}
+.folder{display:flex;flex-direction:column;gap:6px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.folder:last-child{border-bottom:none;padding-bottom:0}
+.folder .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.folder b{font-family:var(--f-display);font-size:16px;min-width:0;overflow-wrap:anywhere}
+.sample{display:inline-block;font-size:11px;background:var(--rose);color:#fff;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+.steps{margin:0;padding-left:20px;font-size:13px;color:var(--sub)}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;z-index:9;max-width:90%}
+@media (prefers-reduced-motion:no-preference){.card{transition:transform .15s}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>書いて撮る単語帳</h1>
+    <p class="lead">ノートの左に問題、右に答え。見開きを撮ると、1行ずつカードになります。</p>
+  </header>
+  <div id="banner" class="note" hidden></div>
+
+  <!-- 覚える -->
+  <section id="v-study" class="panel" role="tabpanel">
+    <div class="row">
+      <label class="f" for="s-folder">フォルダ<select id="s-folder"></select></label>
+      <label class="f" for="s-mode">出す範囲
+        <select id="s-mode"><option value="todo">まだのカードだけ</option><option value="all">ぜんぶ</option></select>
+      </label>
+    </div>
+    <div class="row">
+      <label class="f" for="s-order">順番
+        <select id="s-order"><option value="rand">ランダム</option><option value="seq">ノートの順</option></select>
+      </label>
+      <label class="f" for="s-dir">向き
+        <select id="s-dir"><option value="qa">問題 → 答え</option><option value="aq">答え → 問題</option></select>
+      </label>
+    </div>
+    <div id="s-area"></div>
+  </section>
+
+  <!-- 撮る -->
+  <section id="v-add" class="panel" role="tabpanel" hidden>
+    <h2>ノートを取り込む</h2>
+    <ol class="steps">
+      <li>見開きの左ページに問題、右ページに答えを、同じ行にそろえて書く</li>
+      <li>見開き全体を真上から撮る（または写真を選ぶ）</li>
+      <li>4つの丸を、書く欄の四すみに合わせる。線が行に重なればOK</li>
+    </ol>
+    <div class="row">
+      <label class="f" for="a-rows">1ページの行数
+        <select id="a-rows"><option value="12">12行</option><option value="6">6行</option><option value="8">8行</option><option value="10">10行</option><option value="15">15行</option></select>
+      </label>
+      <label class="f" for="a-folder">フォルダ名<input id="a-folder" type="text" placeholder="例：英単語 Unit3" list="a-folder-list"></label>
+      <datalist id="a-folder-list"></datalist>
+    </div>
+    <label for="a-file" class="primary" style="display:block"><input id="a-file" type="file" accept="image/*" style="width:100%"></label>
+    <div id="a-stage-box" hidden>
+      <div class="stage"><canvas id="a-canvas"></canvas></div>
+      <label class="f" for="a-split" style="margin-top:8px">まん中の線の位置（左右がずれる時に動かす）
+        <input id="a-split" type="range" min="35" max="65" value="50">
+      </label>
+      <div class="row" style="margin-top:8px"><button id="a-reset">丸を元の位置に戻す</button><button id="a-cut" class="primary big">切り分ける</button></div>
+    </div>
+    <div id="a-result" hidden class="panel" style="padding:0;border:none">
+      <p class="lead">チェックを外した行は取り込みません。空いている行は最初から外してあります。</p>
+      <div id="a-strips" class="strips"></div>
+      <button id="a-save" class="rose big">カードにする</button>
+    </div>
+  </section>
+
+  <!-- 記録 -->
+  <section id="v-log" class="panel" role="tabpanel" hidden>
+    <h2>覚えた数</h2>
+    <div id="l-list" class="folders"></div>
+  </section>
+  <section id="v-backup" class="panel" hidden>
+    <h2>バックアップ</h2>
+    <p class="lead">カードはこのスマホの中だけに保存されています。機種変更の前や、たくさん作ったあとに保存しておくと安心です。</p>
+    <div class="row">
+      <button id="b-save" class="primary big">バックアップを保存</button>
+      <label for="b-load" class="big" style="flex:1;display:flex"><span style="display:block;width:100%;text-align:center;border:1px solid var(--line);border-radius:12px;padding:14px;cursor:pointer;font-weight:500">バックアップから戻す</span></label>
+      <input id="b-load" type="file" accept=".json,application/json" hidden>
+    </div>
+  </section>
+</div>
+
+<nav class="tabs" role="tablist"><div class="in">
+  <button id="t-study" role="tab" aria-selected="true" data-v="study">覚える</button>
+  <button id="t-add" role="tab" aria-selected="false" data-v="add">撮る</button>
+  <button id="t-log" role="tab" aria-selected="false" data-v="log">記録</button>
+</div></nav>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const S={cards:[],sample:true,col:null,queue:[],idx:0,shown:false,sessionKey:"",confirmDel:null};
+
+/* ---------- sample cards (shown only until real cards exist) ---------- */
+function textImg(t,hand){
+  const c=document.createElement("canvas");c.width=640;c.height=90;
+  const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,640,90);
+  g.strokeStyle="#c9d3ea";g.beginPath();g.moveTo(0,88);g.lineTo(640,88);g.stroke();
+  g.fillStyle=hand?"#1f2a52":"#222";g.font=(hand?"500 ":"")+"40px 'Zen Maru Gothic', sans-serif";
+  g.textBaseline="middle";g.fillText(t,24,48);return c.toDataURL("image/jpeg",.8);
+}
+function makeSamples(){
+  const pairs=[["apple","りんご"],["borrow","借りる"],["decide","決める"],["environment","環境"],["necessary","必要な"],["remember","覚えている・思い出す"]];
+  return pairs.map((p,i)=>({id:"sample"+i,folder:"見本（英単語）",q:textImg(p[0],1),a:textImg(p[1],1),known:i<2,page:1,row:i,created:i,sample:true}));
+}
+
+/* ---------- storage ---------- */
+function banner(msg){const b=$("#banner");b.textContent=msg||"";b.hidden=!msg;}
+function toast(msg){const t=document.createElement("div");t.className="toast";t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
+/* IndexedDB: cards stay on this phone */
+function openDB(){return new Promise((res,rej)=>{
+  const r=indexedDB.open("kaite-toru-tangocho",1);
+  r.onupgradeneeded=()=>{r.result.createObjectStore("cards",{keyPath:"id"});};
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);
+});}
+function tx(mode,fn){return new Promise((res,rej)=>{
+  const t=S.col.transaction("cards",mode),st=t.objectStore("cards");let out;
+  const r=fn(st);if(r)r.onsuccess=()=>{out=r.result;};
+  t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error);
+});}
+function showSamplesIfEmpty(){
+  if(S.cards.length){S.sample=false;banner("");return;}
+  S.cards=makeSamples();S.sample=true;
+  banner("いま並んでいるのは見本です。「撮る」から自分のノートを取り込むと、ここが自分のカードに入れかわります。");
+}
+async function connect(){
+  try{S.col=await openDB();}catch(e){S.col=null;}
+  if(!S.col){banner("このブラウザではカードを保存できません。Safariのプライベートモードなら、ふつうのモードで開いてください。");return;}
+  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
+  try{S.cards=(await tx("readonly",st=>st.getAll()))||[];}catch(e){S.cards=[];}
+  showSamplesIfEmpty();renderAll(true);
+}
+function newId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8);}
+async function saveCard(c){
+  const card=Object.assign({id:newId()},c);
+  if(S.col)await tx("readwrite",st=>st.put(card));
+  if(S.sample){S.cards=[];S.sample=false;banner("");}
+  S.cards.push(card);
+}
+async function setKnown(card,v){
+  card.known=v;
+  if(card.sample||!S.col)return;
+  try{await tx("readwrite",st=>st.put(card));}catch(e){toast("保存できませんでした");}
+}
+async function deleteFolder(name){
+  const list=S.cards.filter(c=>c.folder===name);
+  if(S.col&&!S.sample){try{await tx("readwrite",st=>{list.forEach(c=>st.delete(c.id));});}catch(e){toast("消せませんでした");return;}}
+  S.cards=S.cards.filter(c=>c.folder!==name);
+  if(!S.sample)showSamplesIfEmpty();
+  renderAll(true);toast("「"+name+"」を消しました");
+}
+
+/* backup */
+$("#b-save").onclick=()=>{
+  const real=S.cards.filter(c=>!c.sample);
+  if(!real.length){toast("まだ保存するカードがありません");return;}
+  const blob=new Blob([JSON.stringify({app:"kaite-toru-tangocho",v:1,saved:new Date().toISOString(),cards:real})],{type:"application/json"});
+  const d=new Date(),p=n=>String(n).padStart(2,"0");
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download="tangocho_"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+".json";
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  toast(real.length+"枚分を保存しました（ファイルアプリの「ダウンロード」）");
+};
+$("#b-load").onchange=async e=>{
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  try{
+    const data=JSON.parse(await f.text());
+    if(!data||data.app!=="kaite-toru-tangocho"||!Array.isArray(data.cards))throw 0;
+    const have=new Set(S.cards.map(c=>c.id));const add=data.cards.filter(c=>c&&c.id&&c.q&&c.a&&!have.has(c.id));
+    if(S.col)await tx("readwrite",st=>{add.forEach(c=>st.put(c));});
+    if(S.sample&&add.length){S.cards=[];S.sample=false;banner("");}
+    S.cards.push(...add);renderAll(true);
+    toast(add.length?add.length+"枚を戻しました":"もう全部入っています");
+  }catch(err){toast("このファイルは読み込めませんでした。保存したバックアップを選んでください");}
+  e.target.value="";
+};
+
+/* ---------- folders ---------- */
+function folders(){
+  const m=new Map();
+  for(const c of S.cards){if(!m.has(c.folder))m.set(c.folder,{name:c.folder,total:0,known:0,last:0});const f=m.get(c.folder);f.total++;if(c.known)f.known++;f.last=Math.max(f.last,c.created||0);}
+  return [...m.values()].sort((a,b)=>b.last-a.last);
+}
+function fillFolderSelect(){
+  const sel=$("#s-folder"),cur=sel.value,fs=folders();
+  sel.innerHTML="";const all=new Option("ぜんぶのフォルダ","*");sel.add(all);
+  fs.forEach(f=>sel.add(new Option(f.name+"（"+f.total+"枚）",f.name)));
+  sel.value=[...sel.options].some(o=>o.value===cur)?cur:(fs[0]?fs[0].name:"*");
+  const dl=$("#a-folder-list");dl.innerHTML="";fs.filter(f=>!S.sample).forEach(f=>{const o=document.createElement("option");o.value=f.name;dl.appendChild(o);});
+}
+
+/* ---------- study ---------- */
+function buildQueue(){
+  const f=$("#s-folder").value,mode=$("#s-mode").value,order=$("#s-order").value;
+  let q=S.cards.filter(c=>(f==="*"||c.folder===f)&&(mode==="all"||!c.known));
+  q.sort((a,b)=>(a.created-b.created)||(a.page-b.page)||(a.row-b.row));
+  if(order==="rand")for(let i=q.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[q[i],q[j]]=[q[j],q[i]];}
+  S.queue=q.map(c=>c.id);S.idx=0;S.shown=false;
+}
+function renderStudy(){
+  const area=$("#s-area");area.innerHTML="";
+  const card=S.cards.find(c=>c.id===S.queue[S.idx]);
+  const f=$("#s-folder").value;
+  const pool=S.cards.filter(c=>f==="*"||c.folder===f);
+  const known=pool.filter(c=>c.known).length;
+  const head=document.createElement("div");head.className="row";head.style.justifyContent="space-between";
+  head.innerHTML='<span class="count"></span>';head.firstChild.textContent="覚えた "+known+" / "+pool.length+" 枚";
+  const m=document.createElement("div");m.className="meter";m.innerHTML="<i></i>";m.firstChild.style.width=(pool.length?known/pool.length*100:0)+"%";
+  area.append(head,m);
+  if(!pool.length){const p=document.createElement("p");p.className="lead";p.textContent="まだカードがありません。下の「撮る」からノートを取り込んでください。";area.append(p);return;}
+  if(!card){
+    const done=document.createElement("div");done.className="panel";done.style.alignItems="center";
+    const h=document.createElement("h2");h.textContent=S.queue.length?"ひと通り終わりました":"このフォルダは全部覚えています";
+    const b=document.createElement("button");b.className="primary big";b.style.width="100%";b.textContent="もう一回";
+    b.onclick=()=>{buildQueue();renderStudy();};done.append(h,b);area.append(done);return;
+  }
+  const rev=$("#s-dir").value==="aq";
+  const c=document.createElement("div");c.className="card";
+  const n=document.createElement("div");n.className="count";n.style.padding="10px 14px 0";n.textContent=(S.idx+1)+" / "+S.queue.length+"　"+card.folder;
+  const s1=side(rev?"答え":"問題",rev?card.a:card.q);
+  const s2=document.createElement("div");s2.className="side";
+  const t2=document.createElement("span");t2.className="tag";t2.textContent=rev?"問題":"答え";s2.append(t2);
+  if(S.shown){const im=new Image();im.src=rev?card.q:card.a;im.alt="";s2.append(im);}
+  else{const cv=document.createElement("button");cv.className="cover";cv.textContent="タップで見る";cv.onclick=()=>{S.shown=true;renderStudy();};s2.append(cv);}
+  c.append(n,s1,s2);area.append(c);
+  const bar=document.createElement("div");bar.className="row";
+  const no=document.createElement("button");no.className="big";no.textContent="まだ";
+  const ok=document.createElement("button");ok.className="okb big";ok.textContent="覚えた";
+  no.onclick=()=>next(card,false);ok.onclick=()=>next(card,true);
+  if(!S.shown){const sh=document.createElement("button");sh.className="primary big";sh.textContent="答えを見る";sh.onclick=()=>{S.shown=true;renderStudy();};bar.append(sh);}
+  else bar.append(no,ok);
+  area.append(bar);
+  if(card.known){const u=document.createElement("p");u.className="lead";u.textContent="このカードは「覚えた」になっています。";area.append(u);}
+}
+function side(label,src){const d=document.createElement("div");d.className="side";const t=document.createElement("span");t.className="tag";t.textContent=label;const im=new Image();im.src=src;im.alt="";d.append(t,im);return d;}
+function next(card,v){if(card.known!==v)setKnown(card,v);S.idx++;S.shown=false;renderStudy();renderLog();}
+
+/* ---------- log ---------- */
+function renderLog(){
+  const box=$("#l-list");box.innerHTML="";const fs=folders();
+  if(!fs.length){box.innerHTML='<p class="lead">まだカードがありません。</p>';return;}
+  fs.forEach(f=>{
+    const d=document.createElement("div");d.className="folder";
+    const top=document.createElement("div");top.className="top";
+    const b=document.createElement("b");b.textContent=f.name;if(S.sample){const sp=document.createElement("span");sp.className="sample";sp.textContent="見本";b.append(sp);}
+    const c=document.createElement("span");c.className="count";c.textContent=f.known+" / "+f.total+" 枚（"+Math.round(f.known/f.total*100)+"%）";
+    top.append(b,c);
+    const m=document.createElement("div");m.className="meter";m.innerHTML="<i></i>";m.firstChild.style.width=(f.known/f.total*100)+"%";
+    const r=document.createElement("div");r.className="row";
+    const st=document.createElement("button");st.textContent="このフォルダを覚える";st.onclick=()=>{$("#s-folder").value=f.name;go("study");buildQueue();renderStudy();};
+    const rs=document.createElement("button");rs.textContent="全部「まだ」に戻す";rs.onclick=async()=>{for(const x of S.cards.filter(x=>x.folder===f.name&&x.known))await setKnown(x,false);renderAll(true);toast("「まだ」に戻しました");};
+    const del=document.createElement("button");
+    if(S.confirmDel===f.name){del.className="rose";del.textContent="本当に消す（"+f.total+"枚）";del.onclick=()=>{S.confirmDel=null;deleteFolder(f.name);};
+      const cancel=document.createElement("button");cancel.textContent="やめる";cancel.onclick=()=>{S.confirmDel=null;renderLog();};r.append(st,rs,del,cancel);}
+    else{del.textContent="消す";del.onclick=()=>{S.confirmDel=f.name;renderLog();};r.append(st,rs,del);}
+    d.append(top,m,r);box.append(d);
+  });
+}
+function renderAll(rebuild){
+  fillFolderSelect();
+  const key=$("#s-folder").value+"|"+$("#s-mode").value+"|"+$("#s-order").value;
+  const stale=S.queue.some(id=>!S.cards.find(c=>c.id===id));
+  if(rebuild||key!==S.sessionKey||stale||!S.queue.length){S.sessionKey=key;buildQueue();}
+  renderStudy();renderLog();
+}
+
+/* ---------- tabs ---------- */
+function go(v){
+  ["study","add","log"].forEach(k=>{$("#v-"+k).hidden=k!==v;$("#t-"+k).setAttribute("aria-selected",k===v);});
+  $("#v-backup").hidden=v!=="log";
+  window.scrollTo(0,0);
+}
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>go(b.dataset.v));
+["#s-folder","#s-mode","#s-order"].forEach(s=>$(s).onchange=()=>{S.sessionKey="";renderAll(true);});
+$("#s-dir").onchange=()=>{S.shown=false;renderStudy();};
+
+/* ---------- capture: perspective crop ---------- */
+const A={img:null,src:null,w:0,h:0,pts:null,drag:-1,strips:[]};
+const cv=$("#a-canvas"),g=cv.getContext("2d");
+$("#a-file").onchange=e=>{
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  const url=URL.createObjectURL(f);const im=new Image();
+  im.onload=()=>{
+    const max=2000,sc=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight));
+    const c=document.createElement("canvas");c.width=Math.round(im.naturalWidth*sc);c.height=Math.round(im.naturalHeight*sc);
+    c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+    A.src=c;A.w=c.width;A.h=c.height;resetPts();
+    cv.width=A.w;cv.height=A.h;$("#a-stage-box").hidden=false;$("#a-result").hidden=true;draw();URL.revokeObjectURL(url);
+  };
+  im.onerror=()=>toast("この写真は開けませんでした。JPEGかPNGで選んでください");
+  im.src=url;
+};
+function resetPts(){const mx=A.w*.06,my=A.h*.08;A.pts=[[mx,my],[A.w-mx,my],[A.w-mx,A.h-my],[mx,A.h-my]];}
+$("#a-reset").onclick=()=>{resetPts();draw();};
+$("#a-split").oninput=draw;$("#a-rows").onchange=()=>{if(A.src)draw();};
+
+// homography mapping unit square (u,v in 0..1) to the quad
+function homography(p){
+  const [x0,y0]=p[0],[x1,y1]=p[1],[x2,y2]=p[2],[x3,y3]=p[3];
+  const dx1=x1-x2,dx2=x3-x2,dy1=y1-y2,dy2=y3-y2,sx=x0-x1+x2-x3,sy=y0-y1+y2-y3;
+  let g7=0,h8=0;
+  const den=dx1*dy2-dx2*dy1;
+  if(Math.abs(den)>1e-9){g7=(sx*dy2-dx2*sy)/den;h8=(dx1*sy-sx*dy1)/den;}
+  const a=x1-x0+g7*x1,b=x3-x0+h8*x3,c=x0,d=y1-y0+g7*y1,e=y3-y0+h8*y3,f=y0;
+  return (u,v)=>{const w=g7*u+h8*v+1;return [(a*u+b*v+c)/w,(d*u+e*v+f)/w];};
+}
+function draw(){
+  if(!A.src)return;
+  g.drawImage(A.src,0,0);
+  const H=homography(A.pts),rows=+$("#a-rows").value,split=+$("#a-split").value/100;
+  const lw=Math.max(2,A.w/400);
+  g.lineWidth=lw;g.strokeStyle="rgba(212,86,122,.9)";
+  for(let i=1;i<rows;i++){const v=i/rows,p=H(0,v),q=H(1,v);g.beginPath();g.moveTo(p[0],p[1]);g.lineTo(q[0],q[1]);g.stroke();}
+  g.strokeStyle="rgba(34,51,107,.95)";g.lineWidth=lw*1.6;
+  g.beginPath();A.pts.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));g.closePath();g.stroke();
+  const s0=H(split,0),s1=H(split,1);g.setLineDash([lw*4,lw*3]);g.beginPath();g.moveTo(s0[0],s0[1]);g.lineTo(s1[0],s1[1]);g.stroke();g.setLineDash([]);
+  const r=Math.max(14,A.w/45);
+  A.pts.forEach(p=>{g.beginPath();g.arc(p[0],p[1],r,0,Math.PI*2);g.fillStyle="rgba(212,86,122,.35)";g.fill();g.lineWidth=lw*1.4;g.strokeStyle="#d4567a";g.stroke();});
+}
+function toImg(e){const b=cv.getBoundingClientRect();return [(e.clientX-b.left)/b.width*A.w,(e.clientY-b.top)/b.height*A.h];}
+cv.addEventListener("pointerdown",e=>{
+  if(!A.pts)return;const p=toImg(e),b=cv.getBoundingClientRect(),tol=44*(A.w/b.width);
+  let best=-1,bd=1e9;A.pts.forEach((q,i)=>{const d=Math.hypot(q[0]-p[0],q[1]-p[1]);if(d<bd){bd=d;best=i;}});
+  if(bd<tol){A.drag=best;cv.setPointerCapture(e.pointerId);e.preventDefault();}
+});
+cv.addEventListener("pointermove",e=>{if(A.drag<0)return;const p=toImg(e);A.pts[A.drag]=[Math.min(A.w,Math.max(0,p[0])),Math.min(A.h,Math.max(0,p[1]))];draw();});
+const endDrag=()=>{A.drag=-1;};cv.addEventListener("pointerup",endDrag);cv.addEventListener("pointercancel",endDrag);
+
+function warp(){
+  const P=A.pts,W=1600;
+  const wTop=Math.hypot(P[1][0]-P[0][0],P[1][1]-P[0][1]),wBot=Math.hypot(P[2][0]-P[3][0],P[2][1]-P[3][1]);
+  const hL=Math.hypot(P[3][0]-P[0][0],P[3][1]-P[0][1]),hR=Math.hypot(P[2][0]-P[1][0],P[2][1]-P[1][1]);
+  const Ht=Math.max(100,Math.round(W*((hL+hR)/2)/((wTop+wBot)/2)));
+  const src=A.src.getContext("2d").getImageData(0,0,A.w,A.h).data;
+  const out=document.createElement("canvas");out.width=W;out.height=Ht;
+  const og=out.getContext("2d"),od=og.createImageData(W,Ht),o=od.data,M=homography(P);
+  for(let y=0;y<Ht;y++){for(let x=0;x<W;x++){
+    const s=M((x+.5)/W,(y+.5)/Ht);let sx=Math.round(s[0]),sy=Math.round(s[1]);
+    sx=sx<0?0:sx>=A.w?A.w-1:sx;sy=sy<0?0:sy>=A.h?A.h-1:sy;
+    const si=(sy*A.w+sx)*4,di=(y*W+x)*4;o[di]=src[si];o[di+1]=src[si+1];o[di+2]=src[si+2];o[di+3]=255;}}
+  og.putImageData(od,0,0);return out;
+}
+function crop(c,x,y,w,h){
+  const outW=Math.min(640,Math.round(w)),k=outW/w,t=document.createElement("canvas");
+  t.width=outW;t.height=Math.max(1,Math.round(h*k));
+  t.getContext("2d").drawImage(c,x,y,w,h,0,0,t.width,t.height);return t;
+}
+function inkRatio(c){
+  const d=c.getContext("2d").getImageData(0,0,c.width,c.height).data;let sum=0,n=c.width*c.height;
+  for(let i=0;i<d.length;i+=4)sum+=d[i]+d[i+1]+d[i+2];const mean=sum/n;let dark=0;
+  const mx=Math.round(c.width*.04),my=Math.round(c.height*.18);
+  for(let y=my;y<c.height-my;y++)for(let x=mx;x<c.width-mx;x++){const i=(y*c.width+x)*4;if(d[i]+d[i+1]+d[i+2]<mean*.62)dark++;}
+  return dark/n;
+}
+$("#a-cut").onclick=()=>{
+  const btn=$("#a-cut");btn.disabled=true;btn.textContent="切り分け中…";
+  setTimeout(()=>{
+    try{
+      const W=warp(),rows=+$("#a-rows").value,split=+$("#a-split").value/100,rh=W.height/rows,lw=W.width*split;
+      A.strips=[];
+      for(let i=0;i<rows;i++){
+        const q=crop(W,0,i*rh,lw,rh),a=crop(W,lw,i*rh,W.width-lw,rh);
+        const has=inkRatio(q)>.004;
+        A.strips.push({q:q.toDataURL("image/jpeg",.72),a:a.toDataURL("image/jpeg",.72),on:has});
+      }
+      renderStrips();$("#a-result").hidden=false;$("#a-result").scrollIntoView({behavior:"smooth",block:"start"});
+    }catch(e){toast("切り分けできませんでした。写真を選び直してください");}
+    btn.disabled=false;btn.textContent="切り分ける";
+  },30);
+};
+function renderStrips(){
+  const box=$("#a-strips");box.innerHTML="";
+  const h=document.createElement("div");h.className="strip";h.innerHTML="<span></span><span>問題</span><span>答え</span>";box.append(h);
+  A.strips.forEach((s,i)=>{
+    const r=document.createElement("label");r.className="strip"+(s.on?"":" off");r.htmlFor="a-on-"+i;
+    const cb=document.createElement("input");cb.type="checkbox";cb.id="a-on-"+i;cb.checked=s.on;
+    cb.onchange=()=>{s.on=cb.checked;r.classList.toggle("off",!s.on);updSave();};
+    const q=new Image();q.src=s.q;q.alt=(i+1)+"行目の問題";const a=new Image();a.src=s.a;a.alt=(i+1)+"行目の答え";
+    r.append(cb,q,a);box.append(r);
+  });
+  updSave();
+}
+function updSave(){const n=A.strips.filter(s=>s.on).length;const b=$("#a-save");b.textContent=n+"枚をカードにする";b.disabled=!n;}
+$("#a-save").onclick=async()=>{
+  const name=($("#a-folder").value||"").trim()||"ノート "+new Date().toLocaleDateString("ja-JP");
+  const b=$("#a-save");b.disabled=true;b.textContent="保存中…";
+  const now=Date.now(),page=now;let ok=0;
+  const on=A.strips.map((s,i)=>({s,i})).filter(x=>x.s.on);
+  for(const {s,i} of on){
+    try{await saveCard({folder:name,q:s.q,a:s.a,known:false,page:page,row:i,created:now+i});ok++;}
+    catch(e){if(e&&e.name==="QuotaExceededError"){toast("スマホの空きがいっぱいです。使わないフォルダを消してください");break;}}
+  }
+  b.disabled=false;
+  if(ok){toast(ok+"枚をカードにしました");$("#a-result").hidden=true;$("#a-stage-box").hidden=true;$("#a-file").value="";A.src=null;
+    fillFolderSelect();$("#s-folder").value=name;S.sessionKey="";renderAll(true);go("study");}
+  else{updSave();toast("保存できませんでした。もう一度押してください");}
+};
+
+/* ---------- boot ---------- */
+S.cards=makeSamples();S.sample=true;
+renderAll(true);
+connect();
+})();
+</script>
+</body>
+</html>
